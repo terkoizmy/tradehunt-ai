@@ -1,0 +1,1184 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradingHunter — Documentation</title>
+<style>
+  :root {
+    --fg: oklch(15% 0.02 100);
+    --surface: oklch(100% 0 0);
+    --border: oklch(15% 0.02 100);
+    --accent: oklch(60% 0.22 25);
+    --green: #5B7E3C;
+    --green-light: #A2CB8B;
+    --green-pale: #E8F5BD;
+    --green-terminal: #33ff33;
+    --green-dim: #1a8a1a;
+    --green-bg: #0d1f0d;
+    --red: #C44545;
+    --red-light: #e86565;
+    --amber: #d4a017;
+    --fg-dark: #0f0f0f;
+    --bg-dark: #0a0a0a;
+    --bg-panel: #111111;
+    --border-dark: #1a3a1a;
+    --border-mid: #1f3d1f;
+    --font-display: 'Times New Roman', 'Iowan Old Style', Georgia, serif;
+    --font-body: ui-monospace, 'IBM Plex Mono', 'JetBrains Mono', Menlo, monospace;
+    --sidebar-w: 260px;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg-dark);color:#c8c8c8;font-family:var(--font-body);font-size:14px;line-height:1.65;overflow-x:hidden}
+  ::selection{background:var(--accent);color:var(--surface)}
+  body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.012) 2px,rgba(0,0,0,0.012) 4px);pointer-events:none;z-index:9999}
+
+  /* ═══ LAYOUT ═══ */
+  .app{display:grid;grid-template-rows:56px 1fr;min-height:100vh}
+  .content-area{display:grid;grid-template-columns:var(--sidebar-w) 1fr}
+
+  /* ═══ TOPBAR ═══ */
+  .topbar{background:var(--fg-dark);border-bottom:2px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100;position:sticky;top:0}
+  .topbar-left{display:flex;align-items:center;gap:20px}
+  .topbar-logo{font-family:var(--font-body);font-size:14px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--surface);text-decoration:none;display:flex;align-items:center;gap:8px}
+  .topbar-logo .prefix{color:var(--green-terminal);font-size:10px;opacity:0.6}
+  .topbar-logo span{color:var(--accent)}
+  .topbar-version{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--green-dim);border:1px solid var(--border-dark);padding:2px 8px}
+  .topbar-right{display:flex;align-items:center;gap:16px}
+  .search-box{position:relative;width:240px}
+  .search-box input{width:100%;background:var(--bg-dark);border:1.5px solid var(--border-dark);color:var(--green-light);padding:8px 12px 8px 32px;font-family:var(--font-body);font-size:12px;outline:none;transition:border-color 0.15s}
+  .search-box input:focus{border-color:var(--green-terminal)}
+  .search-box input::placeholder{color:var(--green-dim)}
+  .search-box .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--green-dim);font-size:12px;pointer-events:none}
+  .search-results{position:absolute;top:100%;left:0;right:0;background:var(--fg-dark);border:1.5px solid var(--border-dark);border-top:none;max-height:300px;overflow-y:auto;display:none;z-index:200}
+  .search-results.open{display:block}
+  .search-result{padding:8px 12px;font-size:12px;color:var(--green-light);cursor:pointer;border-bottom:1px solid var(--border-dark);transition:background 0.1s}
+  .search-result:hover{background:rgba(51,255,51,0.06)}
+  .search-result .section{color:var(--green-dim);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px}
+  .topbar-links{display:flex;gap:16px;list-style:none}
+  .topbar-links a{color:var(--green-dim);text-decoration:none;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;transition:color 0.15s}
+  .topbar-links a:hover{color:var(--green-terminal)}
+  .mobile-search-btn{display:none;background:none;border:1px solid var(--border-dark);color:var(--green-dim);width:36px;height:36px;font-size:16px;cursor:pointer;align-items:center;justify-content:center}
+
+  /* ═══ SIDEBAR ═══ */
+  .sidebar{background:var(--bg-panel);border-right:2px solid var(--border-dark);overflow-y:auto;padding:24px 0;-webkit-overflow-scrolling:touch;position:sticky;top:56px;height:calc(100vh - 56px)}
+  .sidebar::-webkit-scrollbar{width:4px}
+  .sidebar::-webkit-scrollbar-track{background:var(--bg-panel)}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border-dark)}
+  .sidebar-section{margin-bottom:24px}
+  .sidebar-label{padding:0 20px;font-size:9px;text-transform:uppercase;letter-spacing:0.18em;color:var(--green-dim);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .sidebar-label::before{content:'//';color:var(--green-terminal);opacity:0.5}
+  .sidebar a{display:block;padding:6px 20px;color:#888;text-decoration:none;font-size:12px;transition:all 0.15s;border-left:2px solid transparent}
+  .sidebar a:hover{color:var(--green-light);background:rgba(51,255,51,0.03);border-left-color:var(--green-dim)}
+  .sidebar a.active{color:var(--green-terminal);border-left-color:var(--green-terminal);background:rgba(51,255,51,0.06)}
+  .sidebar a .badge{font-size:9px;padding:1px 5px;border:1px solid var(--border-dark);color:var(--green-dim);margin-left:6px;text-transform:uppercase;letter-spacing:0.05em}
+  .sidebar a.active .badge{border-color:var(--green-terminal);color:var(--green-terminal)}
+
+  /* ═══ MAIN CONTENT ═══ */
+  .main-content{padding:48px 56px 120px;max-width:860px;min-width:0}
+  .page-header{margin-bottom:48px;padding-bottom:32px;border-bottom:2px solid var(--border-dark)}
+  .page-header h1{font-family:var(--font-display);font-size:clamp(36px,5vw,56px);font-weight:400;line-height:1.05;margin-bottom:16px;color:var(--surface)}
+  .page-header h1 .accent{color:var(--accent)}
+  .page-header .desc{font-size:16px;color:var(--muted);line-height:1.7;max-width:640px}
+  .page-header .meta{display:flex;gap:16px;margin-top:16px;font-size:11px;color:var(--green-dim);text-transform:uppercase;letter-spacing:0.1em}
+
+  /* ═══ SECTIONS ═══ */
+  .doc-section{margin-bottom:64px;scroll-margin-top:80px}
+  .doc-section h2{font-family:var(--font-display);font-size:28px;font-weight:400;color:var(--surface);margin-bottom:20px;padding-bottom:12px;border-bottom:1.5px solid var(--border-dark);display:flex;align-items:center;gap:12px}
+  .doc-section h2 .hash{color:var(--green-dim);font-size:20px;font-family:var(--font-body);opacity:0;transition:opacity 0.15s}
+  .doc-section h2:hover .hash{opacity:1}
+  .doc-section h3{font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--green-light);margin:32px 0 12px}
+  .doc-section p{margin-bottom:16px;color:#aaa;line-height:1.75}
+  .doc-section ul,.doc-section ol{margin-bottom:16px;padding-left:24px;color:#aaa}
+  .doc-section li{margin-bottom:8px;line-height:1.7}
+  .doc-section li::marker{color:var(--green-dim)}
+
+  /* Inline code */
+  code{background:var(--bg-dark);border:1px solid var(--border-dark);padding:2px 6px;font-family:var(--font-body);font-size:12px;color:var(--green-terminal)}
+
+  /* Code blocks */
+  .code-block{position:relative;margin-bottom:24px;border:1.5px solid var(--border-dark);background:var(--bg-dark)}
+  .code-header{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1.5px solid var(--border-dark);background:rgba(20,20,20,0.8)}
+  .code-lang{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green-dim)}
+  .code-copy{background:none;border:1px solid var(--border-dark);color:var(--green-dim);padding:4px 10px;font-family:var(--font-body);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;transition:all 0.15s}
+  .code-copy:hover{border-color:var(--green-terminal);color:var(--green-terminal)}
+  .code-copy.copied{border-color:var(--green-terminal);color:var(--green-terminal)}
+  .code-body{padding:16px 20px;overflow-x:auto;font-size:13px;line-height:1.8;color:var(--green-light);-webkit-overflow-scrolling:touch}
+  .code-body .kw{color:var(--green-terminal)}
+  .code-body .str{color:var(--amber)}
+  .code-body .cm{color:var(--green-dim)}
+  .code-body .fn{color:var(--accent)}
+  .code-body .num{color:var(--red-light)}
+  .code-body .op{color:#888}
+  .code-body .type{color:var(--green-light)}
+
+  /* Callouts */
+  .callout{padding:16px 20px;margin-bottom:20px;border-left:3px solid var(--green-dim);background:rgba(51,255,51,0.03);font-size:13px;line-height:1.7;color:#aaa}
+  .callout.warn{border-left-color:var(--amber);background:rgba(212,160,23,0.04)}
+  .callout.error{border-left-color:var(--red);background:rgba(196,69,69,0.04)}
+  .callout .callout-title{font-size:11px;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;font-weight:700}
+  .callout .callout-title.tip{color:var(--green-terminal)}
+  .callout .callout-title.warning{color:var(--amber)}
+  .callout .callout-title.danger{color:var(--red-light)}
+  .callout code{background:rgba(0,0,0,0.3);border-color:rgba(255,255,255,0.1)}
+
+  /* Tables */
+  .doc-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px}
+  .doc-table th{text-align:left;padding:10px 16px;background:var(--bg-dark);border:1.5px solid var(--border-dark);color:var(--green-terminal);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;font-weight:400}
+  .doc-table td{padding:10px 16px;border:1px solid var(--border-dark);color:#aaa;vertical-align:top}
+  .doc-table td code{font-size:11px}
+  .doc-table tr:hover td{background:rgba(51,255,51,0.02)}
+
+  /* Collapsible */
+  .collapsible{margin-bottom:12px;border:1.5px solid var(--border-dark)}
+  .collapsible-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(20,20,20,0.5);cursor:pointer;font-size:13px;color:var(--green-light);transition:background 0.15s}
+  .collapsible-header:hover{background:rgba(51,255,51,0.04)}
+  .collapsible-header .arrow{transition:transform 0.2s;color:var(--green-dim);font-size:10px}
+  .collapsible.open .collapsible-header .arrow{transform:rotate(90deg)}
+  .collapsible-body{max-height:0;overflow:hidden;transition:max-height 0.3s ease;padding:0 16px}
+  .collapsible.open .collapsible-body{max-height:2000px;padding:16px}
+  .collapsible-body p{font-size:13px;color:#aaa;line-height:1.7}
+
+  /* Params */
+  .param-row{display:grid;grid-template-columns:140px 100px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-dark);font-size:13px}
+  .param-row:last-child{border-bottom:none}
+  .param-name{color:var(--green-terminal);font-weight:700}
+  .param-type{color:var(--amber);font-size:11px}
+  .param-desc{color:#888}
+
+  /* Next/Prev */
+  .doc-nav{display:flex;justify-content:space-between;padding-top:48px;border-top:2px solid var(--border-dark);margin-top:48px}
+  .doc-nav a{text-decoration:none;color:#888;font-size:13px;transition:color 0.15s;display:flex;flex-direction:column;gap:4px}
+  .doc-nav a:hover{color:var(--green-terminal)}
+  .doc-nav a .label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--green-dim)}
+  .doc-nav a .title{font-size:15px;color:var(--green-light)}
+
+  /* ═══ MOBILE SIDEBAR ═══ */
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:199}
+  .sidebar-overlay.open{display:block}
+  .mobile-menu-btn{display:none;background:none;border:1px solid var(--border-dark);color:var(--green-light);width:36px;height:36px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0}
+
+  /* ═══ RESPONSIVE ═══ */
+  @media(max-width:1024px){
+    .content-area{grid-template-columns:220px 1fr}
+    .main-content{padding:36px 32px 100px}
+    .search-box{width:180px}
+  }
+
+  @media(max-width:768px){
+    .app{grid-template-rows:56px 1fr}
+    .content-area{grid-template-columns:1fr}
+    .sidebar{display:none;position:fixed;top:56px;left:0;bottom:0;width:280px;z-index:200;background:var(--bg-panel);transform:translateX(-100%);transition:transform 0.3s ease}
+    .sidebar.mobile-open{display:block;transform:translateX(0)}
+    .sidebar-overlay.mobile-open{display:block}
+    .mobile-menu-btn{display:flex}
+    .mobile-search-btn{display:flex}
+    .search-box{display:none;position:fixed;top:56px;left:0;right:0;z-index:300;width:100%;padding:12px 16px;background:var(--fg-dark);border-bottom:2px solid var(--border-dark)}
+    .search-box.mobile-open{display:block}
+    .search-box.mobile-open input{width:100%}
+    .search-results{position:fixed;top:auto;left:16px;right:16px;width:auto}
+    .main-content{padding:24px 16px 80px}
+    .topbar-links{display:none}
+    .topbar-version{display:none}
+    .param-row{grid-template-columns:1fr;gap:4px}
+    .param-type{margin-left:0}
+    .doc-nav{flex-direction:column;gap:24px}
+  }
+
+  @media(max-width:480px){
+    .page-header h1{font-size:32px}
+    .doc-section h2{font-size:22px}
+    .doc-section h3{font-size:17px}
+    .code-body{font-size:11px;padding:12px 14px}
+    .doc-table{font-size:11px}
+    .doc-table th,.doc-table td{padding:8px 10px}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+      <a href="#" class="topbar-logo"><span class="prefix">&gt;_</span>Trading<span>Hunter</span></a>
+      <span class="topbar-version">v0.4.1</span>
+    </div>
+    <div class="topbar-right">
+      <div class="search-box" id="searchBox">
+        <span class="search-icon">⌕</span>
+        <input type="text" placeholder="Search docs..." id="searchInput" autocomplete="off">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <button class="mobile-search-btn" id="mobileSearchBtn">⌕</button>
+      <ul class="topbar-links">
+        <li><a href="#">GitHub</a></li>
+        <li><a href="#">Discord</a></li>
+        <li><a href="#">Sandbox</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="content-area">
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Getting started</div>
+        <a href="#introduction" class="active">Introduction</a>
+        <a href="#installation">Installation</a>
+        <a href="#quickstart">Quickstart</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Core concepts</div>
+        <a href="#agents">Agents</a>
+        <a href="#strategies">Strategies</a>
+        <a href="#risk-management">Risk Management</a>
+        <a href="#backtesting">Backtesting</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Modes</div>
+        <a href="#arena-mode">Arena Mode</a>
+        <a href="#evolution-lab">Evolution Lab <span class="badge">new</span></a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">API reference</div>
+        <a href="#api-overview">Overview</a>
+        <a href="#api-agents">Agents API</a>
+        <a href="#api-orders">Orders API</a>
+        <a href="#api-data">Market Data API</a>
+        <a href="#api-webhooks">Webhooks</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Advanced</div>
+        <a href="#configuration">Configuration</a>
+        <a href="#custom-indicators">Custom Indicators</a>
+        <a href="#faq">FAQ</a>
+      </div>
+    </nav>
+
+    <!-- OVERLAY -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- PAGE HEADER -->
+      <div class="page-header">
+        <h1>Documentation<span class="accent">.</span></h1>
+        <p class="desc">Everything you need to build, deploy, and evolve AI trading agents in the TradingHunter sandbox. From your first agent to arena-scale competition.</p>
+        <div class="meta">
+          <span>v0.4.1</span>
+          <span>·</span>
+          <span>Last updated: 2025-01</span>
+        </div>
+      </div>
+
+      <!-- INTRODUCTION -->
+      <section class="doc-section" id="introduction">
+        <h2><span class="hash">#</span> Introduction</h2>
+        <p>TradingHunter is an AI agent trading sandbox. You build agents that trade cryptocurrency pairs using programmable strategies, then deploy them into a paper-trading arena where they compete against other agents — all without risking real capital.</p>
+        <p>The platform provides real-time market data, backtesting infrastructure, a strategy SDK, and a genetic evolution engine. Your agents run 24/7 in isolated sandbox environments.</p>
+
+        <div class="callout">
+          <div class="callout-title tip">TIP</div>
+          TradingHunter is a <strong>paper-trading sandbox</strong>. No real money is at risk. All orders, balances, and P&L are simulated. This is by design — the sandbox exists so you can iterate fast and fail safely.
+        </div>
+
+        <h3>Key features</h3>
+        <ul>
+          <li><strong>Agent SDK</strong> — Build trading agents in JavaScript with full control over signal processing, entry/exit logic, and risk parameters</li>
+          <li><strong>Backtesting</strong> — Run strategies against years of historical data with realistic slippage and fee models</li>
+          <li><strong>Arena Mode</strong> — Deploy agents to compete head-to-head against other traders' bots in live sandbox markets</li>
+          <li><strong>Evolution Lab</strong> — Use genetic algorithms to breed and mutate agent strategies that no human would design</li>
+          <li><strong>Real-time terminal</strong> — Monitor agents, signals, and positions through a live terminal interface</li>
+        </ul>
+      </section>
+
+      <!-- INSTALLATION -->
+      <section class="doc-section" id="installation">
+        <h2><span class="hash">#</span> Installation</h2>
+        <p>The TradingHunter SDK is available as an npm package. You need Node.js 18+ and a TradingHunter account.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="code-copy" data-copy="install">copy</button>
+          </div>
+          <div class="code-body"><span class="cm"># Install the CLI globally</span>
+npm install -g @tradinghunter/cli
+
+<span class="cm"># Initialize a new agent project</span>
+thunter init my-agent
+
+<span class="cm"># Authenticate with your API key</span>
+thunter auth --key tk_live_xxxxxxxxxxxxx
+
+<span class="cm"># Verify connection</span>
+thunter ping
+<span class="cm"># → ✓ Connected to TradingHunter sandbox (arena #47)</span></div>
+        </div>
+
+        <h3>System requirements</h3>
+        <table class="doc-table">
+          <thead>
+            <tr><th>Requirement</th><th>Minimum</th><th>Recommended</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Node.js</td><td>18.x</td><td>20.x LTS</td></tr>
+            <tr><td>npm</td><td>8.x</td><td>10.x</td></tr>
+            <tr><td>RAM</td><td>2 GB</td><td>4 GB</td></tr>
+            <tr><td>Disk</td><td>100 MB</td><td>500 MB</td></tr>
+            <tr><td>Network</td><td>WebSocket-capable</td><td>Low-latency connection</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- QUICKSTART -->
+      <section class="doc-section" id="quickstart">
+        <h2><span class="hash">#</span> Quickstart</h2>
+        <p>Create your first trading agent in under five minutes.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript</span>
+            <button class="code-copy" data-copy="quickstart">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">import</span> { Agent, Strategy } <span class="kw">from</span> <span class="str">'@tradinghunter/sdk'</span>;
+
+<span class="cm">// Define a simple momentum strategy</span>
+<span class="kw">class</span> <span class="type">MomentumReversal</span> <span class="kw">extends</span> <span class="type">Strategy</span> {
+  <span class="fn">configure</span>() {
+    <span class="kw">return</span> {
+      pair: <span class="str">'BTC/USD'</span>,
+      timeframe: <span class="str">'5m'</span>,
+      ema: { fast: <span class="num">9</span>, slow: <span class="num">21</span> },
+      rsi: { period: <span class="num">14</span>, oversold: <span class="num">30</span>, overbought: <span class="num">70</span> },
+      risk: { maxDrawdown: <span class="num">0.08</span>, positionSize: <span class="num">0.025</span> }
+    };
+  }
+
+  <span class="fn">evaluate</span>(candles, indicators) {
+    <span class="kw">const</span> { ema, rsi } <span class="op">=</span> indicators;
+
+    <span class="kw">if</span> (ema.fast <span class="op">></span> ema.slow <span class="op">&&</span> rsi <span class="op"><</span> <span class="num">35</span>) {
+      <span class="kw">return</span> { action: <span class="str">'LONG'</span>, confidence: <span class="num">0.82</span> };
+    }
+
+    <span class="kw">if</span> (ema.fast <span class="op"><</span> ema.slow <span class="op">&&</span> rsi <span class="op">></span> <span class="num">65</span>) {
+      <span class="kw">return</span> { action: <span class="str">'SHORT'</span>, confidence: <span class="num">0.74</span> };
+    }
+
+    <span class="kw">return</span> { action: <span class="str">'HOLD'</span>, confidence: <span class="num">0</span> };
+  }
+}
+
+<span class="cm">// Create and deploy your agent</span>
+<span class="kw">const</span> agent <span class="op">=</span> <span class="kw">new</span> <span class="type">Agent</span>({
+  name: <span class="str">'momentum_hunter_01'</span>,
+  strategy: <span class="kw">new</span> <span class="type">MomentumReversal</span>(),
+  capital: <span class="num">10_000</span>,
+  sandbox: <span class="kw">true</span>
+});
+
+<span class="kw">await</span> agent.<span class="fn">deploy</span>();
+<span class="cm">// → Agent #0047 LIVE in sandbox</span></div>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title tip">TIP</div>
+          The <code>sandbox: true</code> flag ensures your agent trades with simulated capital. Never set this to <code>false</code> unless you understand the implications — the sandbox is where iteration happens.
+        </div>
+      </section>
+
+      <!-- AGENTS -->
+      <section class="doc-section" id="agents">
+        <h2><span class="hash">#</span> Agents</h2>
+        <p>An agent is an autonomous trading process that runs inside the TradingHunter sandbox. Each agent has a unique ID, a strategy, risk parameters, and an isolated portfolio.</p>
+
+        <h3>Agent lifecycle</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">state diagram</span>
+          </div>
+          <div class="code-body"><span class="cm">// Agent states</span>
+
+  ┌─────────┐     deploy()      ┌─────────┐
+  │  IDLE   │ ────────────────► │ RUNNING │
+  └─────────┘                   └────┬────┘
+       ▲                             │
+       │           stop()            │
+       │  ◄──────────────────────────┘
+       │                             │
+       │       error / drawdown      │
+       │  ◄──────────────────────────┘
+       │                             ▼
+       │                       ┌─────────┐
+       └─────────────────────►│ STOPPED │
+           restart()           └─────────┘</div>
+        </div>
+
+        <h3>Creating an agent</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript</span>
+            <button class="code-copy" data-copy="agent-create">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">const</span> agent <span class="op">=</span> <span class="kw">new</span> <span class="type">Agent</span>({
+  <span class="cm">// Required</span>
+  name: <span class="str">'my_first_agent'</span>,
+  strategy: myStrategy,
+
+  <span class="cm">// Portfolio</span>
+  capital: <span class="num">10_000</span>,          <span class="cm">// Starting capital in USDT</span>
+  pairs: [<span class="str">'BTC/USD'</span>, <span class="str">'ETH/USD'</span>], <span class="cm">// Trading pairs</span>
+
+  <span class="cm">// Risk</span>
+  maxDrawdown: <span class="num">0.08</span>,         <span class="cm">// 8% max drawdown</span>
+  positionSize: <span class="num">0.025</span>,        <span class="cm">// 2.5% per trade</span>
+  stopLoss: <span class="num">0.032</span>,           <span class="cm">// 3.2% stop-loss</span>
+  takeProfit: <span class="num">0.068</span>,         <span class="cm">// 6.8% take-profit</span>
+
+  <span class="cm">// Execution</span>
+  sandbox: <span class="kw">true</span>,               <span class="cm">// Paper trading only</span>
+  autoRestart: <span class="kw">true</span>,          <span class="cm">// Restart on crash</span>
+  soundAlerts: <span class="kw">false</span>            <span class="cm">// Audio notifications</span>
+});</div>
+        </div>
+
+        <h3>Agent methods</h3>
+        <table class="doc-table">
+          <thead>
+            <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>agent.deploy()</code></td><td>Promise&lt;string&gt;</td><td>Deploy agent to the sandbox. Returns agent ID.</td></tr>
+            <tr><td><code>agent.stop()</code></td><td>Promise&lt;void&gt;</td><td>Gracefully stop the agent.</td></tr>
+            <tr><td><code>agent.status()</code></td><td>AgentStatus</td><td>Get current state, P&L, position count, uptime.</td></tr>
+            <tr><td><code>agent.on(event, fn)</code></td><td>void</td><td>Listen for events: <code>trade</code>, <code>signal</code>, <code>error</code>, <code>drawdown</code>.</td></tr>
+            <tr><td><code>agent.modify(opts)</code></td><td>Promise&lt;void&gt;</td><td>Update risk parameters without restarting.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- STRATEGIES -->
+      <section class="doc-section" id="strategies">
+        <h2><span class="hash">#</span> Strategies</h2>
+        <p>Strategies are the core logic of your agent. They receive market data and indicators, then return trade signals. TradingHunter ships with four built-in strategies and a framework for custom ones.</p>
+
+        <h3>Built-in strategies</h3>
+        <div class="collapsible open">
+          <div class="collapsible-header">
+            <span>momentum — Trend-following with EMA crossover</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>Generates LONG signals when the fast EMA crosses above the slow EMA and RSI is below oversold. Generates SHORT signals on the inverse. Best for trending markets with clear direction.</p>
+            <div class="param-row"><span class="param-name">ema.fast</span><span class="param-type">number</span><span class="param-desc">Fast EMA period (default: 9)</span></div>
+            <div class="param-row"><span class="param-name">ema.slow</span><span class="param-type">number</span><span class="param-desc">Slow EMA period (default: 21)</span></div>
+            <div class="param-row"><span class="param-name">rsi.period</span><span class="param-type">number</span><span class="param-desc">RSI calculation period (default: 14)</span></div>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>mean_rev — Mean reversion with Bollinger Bands</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>Identifies overbought/oversold conditions using Bollinger Bands and RSI. Enters LONG when price touches the lower band with RSI oversold confirmation. Best for ranging markets.</p>
+            <div class="param-row"><span class="param-name">bb.period</span><span class="param-type">number</span><span class="param-desc">Bollinger Band period (default: 20)</span></div>
+            <div class="param-row"><span class="param-name">bb.stdDev</span><span class="param-type">number</span><span class="param-desc">Standard deviation multiplier (default: 2.0)</span></div>
+            <div class="param-row"><span class="param-name">rsi.period</span><span class="param-type">number</span><span class="param-desc">RSI period (default: 14)</span></div>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>breakout — Volatility breakout with ATR</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>Uses Average True Range (ATR) to detect volatility expansion. Enters when price breaks above/below the ATR channel. Best for high-volatility regimes.</p>
+            <div class="param-row"><span class="param-name">atr.period</span><span class="param-type">number</span><span class="param-desc">ATR period (default: 14)</span></div>
+            <div class="param-row"><span class="param-name">atr.multiplier</span><span class="param-type">number</span><span class="param-desc">ATR multiplier for channel width (default: 1.5)</span></div>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>custom — Write your own strategy class</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>Extend the <code>Strategy</code> base class and implement <code>configure()</code> and <code>evaluate()</code>. You have full access to candle data, all built-in indicators, and custom indicator functions.</p>
+            <p>See <a href="#custom-indicators" style="color:var(--green-terminal)">Custom Indicators</a> for advanced usage.</p>
+          </div>
+        </div>
+
+        <h3>Strategy interface</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">typescript</span>
+            <button class="code-copy" data-copy="strategy-interface">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">interface</span> <span class="type">StrategyConfig</span> {
+  pair: <span class="type">string</span>;           <span class="cm">// e.g. 'BTC/USD'</span>
+  timeframe: <span class="type">string</span>;      <span class="cm">// '1m' | '5m' | '15m' | '1H' | '4H' | '1D'</span>
+  risk: <span class="type">RiskParams</span>;
+  [key: <span class="type">string</span>]: <span class="type">any</span>;
+}
+
+<span class="kw">interface</span> <span class="type">Signal</span> {
+  action: <span class="str">'LONG'</span> | <span class="str">'SHORT'</span> | <span class="str">'HOLD'</span>;
+  confidence: <span class="type">number</span>;    <span class="cm">// 0.0 – 1.0</span>
+  size?: <span class="type">number</span>;          <span class="cm">// Override default position size</span>
+  stopLoss?: <span class="type">number</span>;      <span class="cm">// Override default stop-loss %</span>
+  takeProfit?: <span class="type">number</span>;  <span class="cm">// Override default take-profit %</span>
+  metadata?: <span class="type">Record</span><<span class="type">string</span>, <span class="type">any</span>>;
+}</div>
+        </div>
+      </section>
+
+      <!-- RISK MANAGEMENT -->
+      <section class="doc-section" id="risk-management">
+        <h2><span class="hash">#</span> Risk Management</h2>
+        <p>Every agent has built-in risk controls. These are enforced at the execution layer — your strategy can signal a trade, but the risk engine decides whether it's allowed.</p>
+
+        <div class="callout warn">
+          <div class="callout-title warning">WARNING</div>
+          Setting <code>maxDrawdown</code> to <code>1.0</code> disables the drawdown circuit breaker. Your agent can lose its entire simulated capital. Only use this in backtesting — never in arena mode.
+        </div>
+
+        <h3>Risk parameters</h3>
+        <table class="doc-table">
+          <thead>
+            <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>maxDrawdown</code></td><td>number</td><td>0.08</td><td>Maximum portfolio drawdown (0–1). Agent stops if exceeded.</td></tr>
+            <tr><td><code>positionSize</code></td><td>number</td><td>0.025</td><td>Fraction of capital per trade (0–1).</td></tr>
+            <tr><td><code>stopLoss</code></td><td>number</td><td>0.032</td><td>Default stop-loss as fraction of entry price.</td></tr>
+            <tr><td><code>takeProfit</code></td><td>number</td><td>0.068</td><td>Default take-profit as fraction of entry price.</td></tr>
+            <tr><td><code>maxPositions</code></td><td>number</td><td>5</td><td>Maximum simultaneous open positions.</td></tr>
+            <tr><td><code>cooldownMs</code></td><td>number</td><td>30000</td><td>Minimum time between trades (ms).</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Drawdown circuit breaker</h3>
+        <p>When the agent's portfolio drawdown exceeds <code>maxDrawdown</code>, the risk engine:</p>
+        <ol>
+          <li>Closes all open positions at market price</li>
+          <li>Sets agent state to <code>STOPPED</code></li>
+          <li>Emits a <code>drawdown</code> event</li>
+          <li>If <code>autoRestart</code> is true, waits 60 seconds then restarts with reduced position sizing</li>
+        </ol>
+      </section>
+
+      <!-- BACKTESTING -->
+      <section class="doc-section" id="backtesting">
+        <h2><span class="hash">#</span> Backtesting</h2>
+        <p>Before deploying to the arena, test your strategy against historical data. Backtesting simulates realistic conditions including slippage, fees, and latency.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript</span>
+            <button class="code-copy" data-copy="backtest">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">const</span> result <span class="op">=</span> <span class="kw">await</span> agent.<span class="fn">backtest</span>({
+  pair: <span class="str">'BTC/USD'</span>,
+  period: <span class="str">'365d'</span>,
+  capital: <span class="num">10_000</span>,
+  fees: { maker: <span class="num">0.001</span>, taker: <span class="num">0.0015</span> },
+  slippage: <span class="num">0.0005</span>,    <span class="cm">// 0.05% slippage model</span>
+  latency: <span class="num">200</span>            <span class="cm">// 200ms simulated latency</span>
+});
+
+<span class="cm">// Results</span>
+console.<span class="fn">log</span>(result.summary);
+<span class="cm">// {</span>
+<span class="cm">//   roi: +23.7%,</span>
+<span class="cm">//   maxDrawdown: 6.2%,</span>
+<span class="cm">//   sharpe: 1.84,</span>
+<span class="cm">//   trades: 142,</span>
+<span class="cm">//   winRate: 64%,</span>
+<span class="cm">//   avgHoldTime: '4h 23m'</span>
+<span class="cm">// }</span></div>
+        </div>
+
+        <h3>Backtest metrics</h3>
+        <table class="doc-table">
+          <thead>
+            <tr><th>Metric</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>roi</code></td><td>Total return on investment including fees</td></tr>
+            <tr><td><code>maxDrawdown</code></td><td>Maximum peak-to-trough decline</td></tr>
+            <tr><td><code>sharpe</code></td><td>Risk-adjusted return (Sharpe ratio)</td></tr>
+            <tr><td><code>trades</code></td><td>Total number of executed trades</td></tr>
+            <tr><td><code>winRate</code></td><td>Percentage of profitable trades</td></tr>
+            <tr><td><code>avgHoldTime</code></td><td>Average position duration</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ARENA MODE -->
+      <section class="doc-section" id="arena-mode">
+        <h2><span class="hash">#</span> Arena Mode</h2>
+        <p>The arena is where agents compete. Your agent trades against other traders' bots in live sandbox markets with real-time price feeds. Positions, P&L, and rankings are tracked on a public leaderboard.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript</span>
+            <button class="code-copy" data-copy="arena">copy</button>
+          </div>
+          <div class="code-body"><span class="cm">// Deploy to arena</span>
+<span class="kw">const</span> arenaId <span class="op">=</span> <span class="kw">await</span> agent.<span class="fn">deploy</span>({
+  arena: <span class="num">47</span>,
+  visibility: <span class="str">'public'</span>   <span class="cm">// 'public' | 'private'</span>
+});
+
+<span class="cm">// Listen for arena events</span>
+agent.<span class="fn">on</span>(<span class="str">'trade'</span>, (trade) <span class="op">=></span> {
+  console.<span class="fn">log</span>(<span class="str">`Trade: ${trade.side} ${trade.size} ${trade.pair} @ ${trade.price}`</span>);
+});
+
+agent.<span class="fn">on</span>(<span class="str">'drawdown'</span>, (event) <span class="op">=></span> {
+  console.<span class="fn">log</span>(<span class="str">`Drawdown alert: ${event.currentDrawdown}%`</span>);
+});</div>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title tip">TIP</div>
+          Arena matches run for 7 days. After each match, agents are ranked by risk-adjusted return (Sharpe ratio × ROI). The top 3 agents receive permanent leaderboard placement.
+        </div>
+      </section>
+
+      <!-- EVOLUTION LAB -->
+      <section class="doc-section" id="evolution-lab">
+        <h2><span class="hash">#</span> Evolution Lab <span style="font-size:11px;border:1px solid var(--green-terminal);color:var(--green-terminal);padding:2px 6px;text-transform:uppercase;letter-spacing:0.1em;margin-left:8px">new</span></h2>
+        <p>The Evolution Lab uses genetic algorithms to breed and mutate agent strategies. You provide a base strategy and fitness criteria; the engine generates variants, backtests them, and selects the fittest for the next generation.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript</span>
+            <button class="code-copy" data-copy="evolution">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">import</span> { EvolutionLab } <span class="kw">from</span> <span class="str">'@tradinghunter/sdk'</span>;
+
+<span class="kw">const</span> lab <span class="op">=</span> <span class="kw">new</span> <span class="type">EvolutionLab</span>({
+  baseStrategy: MomentumReversal,
+  populationSize: <span class="num">50</span>,
+  generations: <span class="num">20</span>,
+  mutationRate: <span class="num">0.15</span>,
+  crossoverRate: <span class="num">0.7</span>,
+  fitness: <span class="str">'sharpe'</span>,   <span class="cm">// Optimize for Sharpe ratio</span>
+  backtestPeriod: <span class="str">'180d'</span>,
+  eliteCount: <span class="num">5</span>            <span class="cm">// Preserve top 5 each generation</span>
+});
+
+<span class="kw">const</span> result <span class="op">=</span> <span class="kw">await</span> lab.<span class="fn">evolve</span>();
+console.<span class="fn">log</span>(result.best);
+<span class="cm">// {</span>
+<span class="cm">//   generation: 17,</span>
+<span class="cm">//   fitness: 2.41,</span>
+<span class="cm">//   params: { ema.fast: 7, ema.slow: 23, rsi.period: 12, ... }</span>
+<span class="cm">// }</span></div>
+        </div>
+      </section>
+
+      <!-- API OVERVIEW -->
+      <section class="doc-section" id="api-overview">
+        <h2><span class="hash">#</span> API Overview</h2>
+        <p>The TradingHunter REST API provides programmatic access to agents, orders, market data, and webhooks. Base URL:</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+          </div>
+          <div class="code-body">https://api.tradinghunter.io/v1</div>
+        </div>
+
+        <h3>Authentication</h3>
+        <p>All requests require an API key passed via the <code>Authorization</code> header:</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="code-copy" data-copy="auth">copy</button>
+          </div>
+          <div class="code-body">curl -H <span class="str">"Authorization: Bearer tk_live_xxxxxxxxxxxxx"</span> \
+  https://api.tradinghunter.io/v1/agents</div>
+        </div>
+
+        <div class="callout error">
+          <div class="callout-title danger">IMPORTANT</div>
+          Never expose your API key in client-side code. Use environment variables or a secrets manager. Rotate keys regularly from the dashboard.
+        </div>
+
+        <h3>Rate limits</h3>
+        <table class="doc-table">
+          <thead>
+            <tr><th>Plan</th><th>Requests/min</th><th>Concurrent agents</th><th>Backtests/day</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Free</td><td>60</td><td>3</td><td>10</td></tr>
+            <tr><td>Pro</td><td>600</td><td>25</td><td>100</td></tr>
+            <tr><td>Enterprise</td><td>6,000</td><td>Unlimited</td><td>Unlimited</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- API AGENTS -->
+      <section class="doc-section" id="api-agents">
+        <h2><span class="hash">#</span> Agents API</h2>
+
+        <h3>Create an agent</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="code-copy" data-copy="api-create">copy</button>
+          </div>
+          <div class="code-body">POST /v1/agents
+
+{
+  <span class="str">"name"</span>: <span class="str">"momentum_hunter_01"</span>,
+  <span class="str">"strategy"</span>: <span class="str">"momentum"</span>,
+  <span class="str">"capital"</span>: <span class="num">10000</span>,
+  <span class="str">"pairs"</span>: [<span class="str">"BTC/USD"</span>, <span class="str">"ETH/USD"</span>],
+  <span class="str">"risk"</span>: {
+    <span class="str">"maxDrawdown"</span>: <span class="num">0.08</span>,
+    <span class="str">"positionSize"</span>: <span class="num">0.025</span>
+  }
+}
+
+<span class="cm">// Response: 201 Created</span>
+{
+  <span class="str">"id"</span>: <span class="str">"agt_0047"</span>,
+  <span class="str">"status"</span>: <span class="str">"idle"</span>,
+  <span class="str">"createdAt"</span>: <span class="str">"2025-01-15T10:32:00Z"</span>
+}</div>
+        </div>
+
+        <h3>List agents</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+          </div>
+          <div class="code-body">GET /v1/agents
+
+<span class="cm">// Response: 200 OK</span>
+[
+  { <span class="str">"id"</span>: <span class="str">"agt_0047"</span>, <span class="str">"name"</span>: <span class="str">"momentum_hunter_01"</span>, <span class="str">"status"</span>: <span class="str">"running"</span> },
+  { <span class="str">"id"</span>: <span class="str">"agt_0031"</span>, <span class="str">"name"</span>: <span class="str">"mean_rev_v2"</span>, <span class="str">"status"</span>: <span class="str">"stopped"</span> }
+]</div>
+        </div>
+      </section>
+
+      <!-- API ORDERS -->
+      <section class="doc-section" id="api-orders">
+        <h2><span class="hash">#</span> Orders API</h2>
+
+        <h3>Place an order</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="code-copy" data-copy="api-order">copy</button>
+          </div>
+          <div class="code-body">POST /v1/agents/agt_0047/orders
+
+{
+  <span class="str">"side"</span>: <span class="str">"long"</span>,
+  <span class="str">"pair"</span>: <span class="str">"BTC/USD"</span>,
+  <span class="str">"size"</span>: <span class="num">0.15</span>,
+  <span class="str">"type"</span>: <span class="str">"market"</span>,
+  <span class="str">"stopLoss"</span>: <span class="num">0.032</span>,
+  <span class="str">"takeProfit"</span>: <span class="num">0.068</span>
+}
+
+<span class="cm">// Response: 201 Created</span>
+{
+  <span class="str">"id"</span>: <span class="str">"ord_8921"</span>,
+  <span class="str">"status"</span>: <span class="str">"filled"</span>,
+  <span class="str">"fillPrice"</span>: <span class="num">67894.20</span>,
+  <span class="str">"timestamp"</span>: <span class="str">"2025-01-15T10:35:12Z"</span>
+}</div>
+        </div>
+      </section>
+
+      <!-- API DATA -->
+      <section class="doc-section" id="api-data">
+        <h2><span class="hash">#</span> Market Data API</h2>
+
+        <h3>Get candles</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="code-copy" data-copy="api-candles">copy</button>
+          </div>
+          <div class="code-body">GET /v1/market/BTC-USD/candles?timeframe=5m&limit=100
+
+<span class="cm">// Response: 200 OK</span>
+[
+  { <span class="str">"t"</span>: <span class="num">1705312800</span>, <span class="str">"o"</span>: <span class="num">67842.30</span>, <span class="str">"h"</span>: <span class="num">67956.80</span>, <span class="str">"l"</span>: <span class="num">67690.10</span>, <span class="str">"c"</span>: <span class="num">67894.20</span>, <span class="str">"v"</span>: <span class="num">2134.5</span> },
+  ...
+]</div>
+        </div>
+
+        <h3>Get indicators</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+          </div>
+          <div class="code-body">GET /v1/market/BTC-USD/indicators?ema=9,21&rsi=14&atr=14
+
+<span class="cm">// Response: 200 OK</span>
+{
+  <span class="str">"ema"</span>: { <span class="str">"9"</span>: <span class="num">67690.42</span>, <span class="str">"21"</span>: <span class="num">67412.18</span> },
+  <span class="str">"rsi"</span>: { <span class="str">"14"</span>: <span class="num">62.4</span> },
+  <span class="str">"atr"</span>: { <span class="str">"14"</span>: <span class="num">1847.32</span> }
+}</div>
+        </div>
+      </section>
+
+      <!-- API WEBHOOKS -->
+      <section class="doc-section" id="api-webhooks">
+        <h2><span class="hash">#</span> Webhooks</h2>
+        <p>Subscribe to real-time events via WebSocket or HTTP webhooks.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript</span>
+            <button class="code-copy" data-copy="websocket">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">import</span> { WebSocket } <span class="kw">from</span> <span class="str">'@tradinghunter/sdk'</span>;
+
+<span class="kw">const</span> ws <span class="op">=</span> <span class="kw">new</span> <span class="type">WebSocket</span>(<span class="str">'wss://stream.tradinghunter.io/v1'</span>, {
+  headers: { Authorization: <span class="str">'Bearer tk_live_xxxxxxxxxxxxx'</span> }
+});
+
+ws.<span class="fn">on</span>(<span class="str">'trade'</span>, (data) <span class="op">=></span> {
+  console.<span class="fn">log</span>(<span class="str">`Trade: ${data.side} ${data.size} ${data.pair}`</span>);
+});
+
+ws.<span class="fn">on</span>(<span class="str">'signal'</span>, (data) <span class="op">=></span> {
+  console.<span class="fn">log</span>(<span class="str">`Signal: ${data.action} ${data.pair} (confidence: ${data.confidence})`</span>);
+});
+
+ws.<span class="fn">on</span>(<span class="str">'drawdown'</span>, (data) <span class="op">=></span> {
+  console.<span class="fn">log</span>(<span class="str">`⚠ Drawdown: ${data.currentDrawdown}%`</span>);
+});</div>
+        </div>
+
+        <h3>Event types</h3>
+        <table class="doc-table">
+          <thead>
+            <tr><th>Event</th><th>Payload</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>trade</code></td><td>side, pair, size, price, fee</td><td>Order filled</td></tr>
+            <tr><td><code>signal</code></td><td>action, pair, confidence, indicators</td><td>Strategy signal generated</td></tr>
+            <tr><td><code>drawdown</code></td><td>currentDrawdown, threshold</td><td>Drawdown warning or circuit breaker</td></tr>
+            <tr><td><code>error</code></td><td>code, message, stack</td><td>Agent runtime error</td></tr>
+            <tr><td><code>status</code></td><td>state, uptime, tradeCount</td><td>Agent status change</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- CONFIGURATION -->
+      <section class="doc-section" id="configuration">
+        <h2><span class="hash">#</span> Configuration</h2>
+        <p>Agent configuration can be set via the SDK, CLI, or a <code>thunter.config.js</code> file at your project root.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript — thunter.config.js</span>
+            <button class="code-copy" data-copy="config">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">export default</span> {
+  <span class="cm">// Agent defaults</span>
+  agent: {
+    capital: <span class="num">10_000</span>,
+    sandbox: <span class="kw">true</span>,
+    autoRestart: <span class="kw">true</span>,
+    maxPositions: <span class="num">5</span>,
+    cooldownMs: <span class="num">30_000</span>
+  },
+
+  <span class="cm">// Risk defaults</span>
+  risk: {
+    maxDrawdown: <span class="num">0.08</span>,
+    positionSize: <span class="num">0.025</span>,
+    stopLoss: <span class="num">0.032</span>,
+    takeProfit: <span class="num">0.068</span>
+  },
+
+  <span class="cm">// Backtesting</span>
+  backtest: {
+    fees: { maker: <span class="num">0.001</span>, taker: <span class="num">0.0015</span> },
+    slippage: <span class="num">0.0005</span>,
+    latency: <span class="num">200</span>
+  },
+
+  <span class="cm">// Evolution</span>
+  evolution: {
+    populationSize: <span class="num">50</span>,
+    generations: <span class="num">20</span>,
+    mutationRate: <span class="num">0.15</span>,
+    fitness: <span class="str">'sharpe'</span>
+  }
+};</div>
+        </div>
+      </section>
+
+      <!-- CUSTOM INDICATORS -->
+      <section class="doc-section" id="custom-indicators">
+        <h2><span class="hash">#</span> Custom Indicators</h2>
+        <p>Write your own indicator functions and use them inside any strategy.</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">javascript</span>
+            <button class="code-copy" data-copy="custom-indicator">copy</button>
+          </div>
+          <div class="code-body"><span class="kw">import</span> { Indicator } <span class="kw">from</span> <span class="str">'@tradinghunter/sdk'</span>;
+
+<span class="kw">class</span> <span class="type">VWAP</span> <span class="kw">extends</span> <span class="type">Indicator</span> {
+  <span class="fn">compute</span>(candles) {
+    <span class="kw">let</span> cumulativeVolume <span class="op">=</span> <span class="num">0</span>;
+    <span class="kw">let</span> cumulativeTP <span class="op">=</span> <span class="num">0</span>;
+
+    <span class="kw">return</span> candles.<span class="fn">map</span>(c <span class="op">=></span> {
+      <span class="kw">const</span> typicalPrice <span class="op">=</span> (c.high <span class="op">+</span> c.low <span class="op">+</span> c.close) <span class="op">/</span> <span class="num">3</span>;
+      cumulativeVolume <span class="op">+=</span> c.volume;
+      cumulativeTP <span class="op">+=</span> typicalPrice <span class="op">*</span> c.volume;
+      <span class="kw">return</span> cumulativeTP <span class="op">/</span> cumulativeVolume;
+    });
+  }
+}
+
+<span class="cm">// Register and use</span>
+agent.<span class="fn">useIndicator</span>(<span class="str">'vwap'</span>, <span class="kw">new</span> <span class="type">VWAP</span>());
+
+<span class="cm">// Access in strategy.evaluate()</span>
+<span class="kw">const</span> vwap <span class="op">=</span> indicators.vwap;</div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="doc-section" id="faq">
+        <h2><span class="hash">#</span> FAQ</h2>
+
+        <div class="collapsible open">
+          <div class="collapsible-header">
+            <span>Is TradingHunter real trading?</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>No. TradingHunter is a paper-trading sandbox. All capital, orders, and P&L are simulated. No real money is ever at risk. The platform is designed for strategy development, backtesting, and competitive AI agent research.</p>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>What programming languages are supported?</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>The SDK is available for JavaScript/TypeScript (Node.js 18+). Python and Rust SDKs are on the roadmap. The REST API and webhooks can be used from any language.</p>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>How often do agents trade?</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>Agents evaluate signals on every new candle for their configured timeframe. A <code>5m</code> strategy checks for signals every 5 minutes. You can set a <code>cooldownMs</code> parameter to enforce minimum time between trades (default: 30 seconds).</p>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>Can I run multiple agents simultaneously?</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>Yes. The free plan supports 3 concurrent agents. Pro supports 25. Enterprise is unlimited. Each agent gets its own isolated portfolio and risk engine.</p>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>What happens when an agent hits max drawdown?</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>The risk engine closes all open positions, sets the agent status to <code>STOPPED</code>, and emits a <code>drawdown</code> event. If <code>autoRestart</code> is enabled, the agent restarts after 60 seconds with reduced position sizing. You can also restart manually via the CLI or API.</p>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="collapsible-header">
+            <span>How do arena matches work?</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="collapsible-body">
+            <p>Arena matches run for 7 days. All agents trade the same simulated market with identical price feeds. Rankings are based on risk-adjusted return (Sharpe ratio × ROI). The top 3 agents receive permanent leaderboard placement. After a match, you can review your agent's trades, signals, and performance in the terminal.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- DOC NAV -->
+      <div class="doc-nav">
+        <a href="#installation">
+          <span class="label">← Previous</span>
+          <span class="title">Installation</span>
+        </a>
+        <a href="#api-overview">
+          <span class="label">Next →</span>
+          <span class="title">API Reference</span>
+        </a>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+/* ═══ SIDEBAR SCROLL SPY ═══ */
+(function(){
+  var sections = document.querySelectorAll('.doc-section');
+  var links = document.querySelectorAll('.sidebar a');
+
+  function setActive(){
+    var scrollY = window.scrollY + 120;
+    var current = '';
+    sections.forEach(function(sec){
+      if(sec.offsetTop <= scrollY) current = sec.id;
+    });
+    links.forEach(function(link){
+      link.classList.remove('active');
+      if(link.getAttribute('href') === '#' + current) link.classList.add('active');
+    });
+  }
+  window.addEventListener('scroll', setActive);
+  setActive();
+})();
+
+/* ═══ COLLAPSIBLES ═══ */
+document.querySelectorAll('.collapsible-header').forEach(function(header){
+  header.addEventListener('click', function(){
+    var parent = header.parentElement;
+    parent.classList.toggle('open');
+  });
+});
+
+/* ═══ COPY BUTTONS ═══ */
+document.querySelectorAll('.code-copy').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var codeBlock = btn.closest('.code-block');
+    var codeBody = codeBlock.querySelector('.code-body');
+    var text = codeBody.textContent || codeBody.innerText;
+    navigator.clipboard.writeText(text).then(function(){
+      btn.textContent = '✓ copied';
+      btn.classList.add('copied');
+      setTimeout(function(){
+        btn.textContent = 'copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  });
+});
+
+/* ═══ SEARCH ═══ */
+(function(){
+  var input = document.getElementById('searchInput');
+  var results = document.getElementById('searchResults');
+  var pages = [
+    {title:'Introduction',section:'Getting started',id:'introduction'},
+    {title:'Installation',section:'Getting started',id:'installation'},
+    {title:'Quickstart',section:'Getting started',id:'quickstart'},
+    {title:'Agents',section:'Core concepts',id:'agents'},
+    {title:'Strategies',section:'Core concepts',id:'strategies'},
+    {title:'Risk Management',section:'Core concepts',id:'risk-management'},
+    {title:'Backtesting',section:'Core concepts',id:'backtesting'},
+    {title:'Arena Mode',section:'Modes',id:'arena-mode'},
+    {title:'Evolution Lab',section:'Modes',id:'evolution-lab'},
+    {title:'API Overview',section:'API reference',id:'api-overview'},
+    {title:'Agents API',section:'API reference',id:'api-agents'},
+    {title:'Orders API',section:'API reference',id:'api-orders'},
+    {title:'Market Data API',section:'API reference',id:'api-data'},
+    {title:'Webhooks',section:'API reference',id:'api-webhooks'},
+    {title:'Configuration',section:'Advanced',id:'configuration'},
+    {title:'Custom Indicators',section:'Advanced',id:'custom-indicators'},
+    {title:'FAQ',section:'Advanced',id:'faq'}
+  ];
+
+  input.addEventListener('input', function(){
+    var q = input.value.toLowerCase().trim();
+    if(!q){ results.classList.remove('open'); return; }
+    var matches = pages.filter(function(p){
+      return p.title.toLowerCase().indexOf(q) !== -1 || p.section.toLowerCase().indexOf(q) !== -1;
+    });
+    if(matches.length === 0){ results.classList.remove('open'); return; }
+    results.innerHTML = '';
+    matches.forEach(function(m){
+      var div = document.createElement('div');
+      div.className = 'search-result';
+      div.innerHTML = '<div class="section">' + m.section + '</div><div>' + m.title + '</div>';
+      div.addEventListener('click', function(){
+        document.getElementById(m.id).scrollIntoView({behavior:'smooth'});
+        results.classList.remove('open');
+        input.value = '';
+      });
+      results.appendChild(div);
+    });
+    results.classList.add('open');
+  });
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.search-box')) results.classList.remove('open');
+  });
+})();
+
+/* ═══ MOBILE MENU ═══ */
+(function(){
+  var btn = document.getElementById('mobileMenuBtn');
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+
+  btn.addEventListener('click', function(){
+    sidebar.classList.toggle('mobile-open');
+    overlay.classList.toggle('mobile-open');
+  });
+  overlay.addEventListener('click', function(){
+    sidebar.classList.remove('mobile-open');
+    overlay.classList.remove('mobile-open');
+  });
+  sidebar.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click', function(){
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('mobile-open');
+    });
+  });
+})();
+
+/* ═══ MOBILE SEARCH TOGGLE ═══ */
+(function(){
+  var btn = document.getElementById('mobileSearchBtn');
+  var box = document.getElementById('searchBox');
+  if(btn){
+    btn.addEventListener('click', function(){
+      box.classList.toggle('mobile-open');
+      if(box.classList.contains('mobile-open')){
+        box.querySelector('input').focus();
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

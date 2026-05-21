@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:dorahacks.io)",
+      "WebSearch",
+      "Bash(git config *)",
+      "WebFetch(domain:best-practices.8004scan.io)",
+      "Bash(gh repo *)",
+      "WebFetch(domain:github.com)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\" -Recurse -Depth 1)",
+      "Bash(Select-Object Mode, Name, Length)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(git *)",
+      "WebFetch(domain:cdn.jsdelivr.net)",
+      "PowerShell(conda create *)",
+      "Bash(conda run *)",
+      "Bash(gh auth *)",
+      "Bash(npm install *)"
+    ]
+  }
+}

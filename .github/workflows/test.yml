@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: cd contracts && forge test -vvv
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: tradehunt_test
+          POSTGRES_USER: tradehunt
+          POSTGRES_PASSWORD: tradehunt_test
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e api/
+      - run: cd api && pytest -v
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_DB: tradehunt_test
+          POSTGRES_USER: tradehunt
+          POSTGRES_PASSWORD: tradehunt_test
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: cd frontend && npm ci && npm run build

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+*.egg
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+pgdata/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Alembic
+api/src/db/migrations/versions/

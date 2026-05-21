@@ -1,0 +1,802 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradingHunter — AI Agent Trading Sandbox</title>
+<style>
+  :root {
+    --bg: oklch(98% 0.004 240);
+    --surface: oklch(100% 0 0);
+    --fg: oklch(15% 0.02 100);
+    --muted: oklch(40% 0.02 100);
+    --border: oklch(15% 0.02 100);
+    --accent: oklch(60% 0.22 25);
+    --green: #5B7E3C;
+    --green-light: #A2CB8B;
+    --green-pale: #E8F5BD;
+    --green-terminal: #33ff33;
+    --green-dim: #1a8a1a;
+    --red: #C44545;
+    --amber: #d4a017;
+    --font-display: 'Times New Roman', 'Iowan Old Style', Georgia, serif;
+    --font-body: ui-monospace, 'IBM Plex Mono', 'JetBrains Mono', Menlo, monospace;
+    --font-mono: ui-monospace, 'IBM Plex Mono', 'JetBrains Mono', Menlo, monospace;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6;overflow-x:hidden}
+  ::selection{background:var(--accent);color:var(--surface)}
+
+  /* Scanlines */
+  body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.018) 2px,rgba(0,0,0,0.018) 4px);pointer-events:none;z-index:9999}
+
+  /* Glitch text */
+  .glitch{position:relative;display:inline-block}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+  .glitch::before{color:var(--green-light);animation:glitch-1 4s infinite;clip-path:inset(0 0 80% 0)}
+  .glitch::after{color:var(--accent);animation:glitch-2 4s infinite;clip-path:inset(80% 0 0 0)}
+  @keyframes glitch-1{0%,92%,100%{transform:translate(0)}93%{transform:translate(-4px,-1px)}95%{transform:translate(3px,1px)}96%{transform:translate(0)}}
+  @keyframes glitch-2{0%,93%,100%{transform:translate(0)}94%{transform:translate(3px,1px)}96%{transform:translate(-4px,-1px)}97%{transform:translate(0)}}
+
+  /* ASCII art block */
+  .ascii-art{font-family:var(--font-mono);font-size:11px;line-height:1.25;color:var(--green-light);white-space:pre;user-select:none;overflow:hidden}
+
+  /* System stamp */
+  .sys-stamp{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim);border:1px solid var(--green-dim);padding:3px 8px;margin-bottom:12px}
+  .sys-stamp::before{content:'>';color:var(--green-terminal)}
+
+  /* Blinking cursor */
+  .cursor-blink::after{content:'█';animation:blink-cursor 1s step-end infinite;color:var(--green-terminal)}
+  @keyframes blink-cursor{0%,50%{opacity:1}51%,100%{opacity:0}}
+
+  /* ═══ NAV ═══ */
+  nav{position:sticky;top:0;z-index:100;background:rgba(15,15,15,0.95);backdrop-filter:blur(8px);border-bottom:2px solid var(--border);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between}
+  .nav-logo{font-family:var(--font-mono);font-size:15px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--surface);display:flex;align-items:center;gap:8px}
+  .nav-logo .prefix{color:var(--green-terminal);font-size:11px;opacity:0.6}
+  .nav-logo .name{color:var(--surface)}
+  .nav-logo .name span{color:var(--accent)}
+  .nav-links{display:flex;gap:24px;list-style:none;font-size:11px;text-transform:uppercase;letter-spacing:0.1em}
+  .nav-links a{color:var(--green-light);text-decoration:none;border-bottom:1.5px solid transparent;transition:border-color 0.15s}
+  .nav-links a:hover{border-bottom-color:var(--green-terminal)}
+  .nav-cta{background:var(--accent);color:var(--surface);border:none;padding:8px 20px;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;cursor:pointer;transition:box-shadow 0.15s}
+  .nav-cta:hover{box-shadow:0 0 12px var(--accent)}
+
+  /* ═══ HERO ═══ */
+  .hero{position:relative;min-height:100vh;background:var(--fg);display:flex;align-items:center;overflow:hidden}
+  .hero-inner{display:grid;grid-template-columns:1fr 1fr;width:100%;min-height:100vh}
+  #heroCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+  .hero-content{position:relative;z-index:3;padding:80px 48px;display:flex;flex-direction:column;justify-content:center}
+  .hero-eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:0.18em;color:var(--green-dim);margin-bottom:24px;display:flex;align-items:center;gap:12px}
+  .rec-dot{width:8px;height:8px;background:var(--red);animation:blink-dot 1.5s infinite}
+  @keyframes blink-dot{0%,100%{opacity:1}50%{opacity:0.3}}
+  .hero-title{font-family:var(--font-display);font-size:clamp(56px,11vw,160px);font-weight:400;line-height:0.85;letter-spacing:-0.04em;color:var(--surface);margin-bottom:32px}
+  .hero-title .accent{color:var(--accent)}
+  .hero-sub{font-size:15px;color:var(--muted);max-width:460px;margin-bottom:40px;line-height:1.65}
+  .hero-actions{display:flex;gap:16px;flex-wrap:wrap}
+  .btn-primary{background:var(--accent);color:var(--surface);border:2px solid var(--accent);padding:14px 32px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:transform 0.15s,box-shadow 0.15s}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 20px rgba(196,69,69,0.4)}
+  .btn-secondary{background:transparent;color:var(--green-light);border:2px solid var(--green);padding:14px 32px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:border-color 0.15s,box-shadow 0.15s}
+  .btn-secondary:hover{border-color:var(--green-terminal);box-shadow:0 0 16px rgba(51,255,51,0.15)}
+
+  /* Hero right — ASCII bot panel */
+  .hero-ascii{position:relative;z-index:3;background:rgba(10,10,10,0.85);border-left:2px solid var(--green-dim);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:40px 20px;overflow:hidden}
+  .terminal-bar{width:100%;max-width:520px;display:flex;align-items:center;gap:6px;padding:8px 12px;border:1.5px solid var(--green-dim);border-bottom:none;margin-bottom:0}
+  .terminal-dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--green-dim)}
+  .terminal-dot.r{border-color:var(--red);background:var(--red)}
+  .terminal-dot.y{border-color:var(--amber);background:var(--amber)}
+  .terminal-dot.g{border-color:var(--green);background:var(--green)}
+  .terminal-title{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--green-dim);margin-left:8px}
+  .terminal-body{width:100%;max-width:520px;border:1.5px solid var(--green-dim);border-top:none;padding:16px 20px;background:rgba(5,5,5,0.6);position:relative}
+  .terminal-body .ascii-art{font-size:10px;line-height:1.2}
+  .terminal-log{width:100%;max-width:520px;border:1.5px solid var(--green-dim);border-top:none;padding:12px 20px;background:rgba(5,5,5,0.6);font-size:11px;line-height:1.7;color:var(--green-light)}
+  .terminal-log .prompt{color:var(--green-terminal)}
+  .terminal-log .success{color:var(--green-terminal)}
+  .terminal-log .warn{color:var(--amber)}
+  .terminal-log .error{color:var(--red)}
+  .terminal-log .dim{color:var(--green-dim)}
+  .live-indicator{position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:6px;font-size:9px;text-transform:uppercase;letter-spacing:0.15em;color:var(--red)}
+  .live-indicator::before{content:'';width:6px;height:6px;background:var(--red);animation:blink-dot 1s infinite}
+
+  /* ═══ SECTION SHARED ═══ */
+  .sec-label{font-size:10px;text-transform:uppercase;letter-spacing:0.18em;color:var(--green-dim);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+  .sec-label::before{content:'>';color:var(--green-terminal);font-weight:700}
+
+  /* ═══ ABOUT ═══ */
+  .about{display:grid;grid-template-columns:1fr 1fr;border-bottom:2px solid var(--border)}
+  .about-main{padding:100px 56px}
+  .about-heading{font-family:var(--font-display);font-size:clamp(32px,5vw,72px);font-weight:400;line-height:1.05;margin-bottom:24px}
+  .about-heading .hl{color:var(--accent)}
+  .about-text{font-size:15px;line-height:1.7;color:var(--muted);max-width:520px;margin-bottom:28px}
+  .about-code{background:var(--fg);color:var(--green-light);border:1.5px solid var(--green-dim);padding:16px 20px;font-size:11px;line-height:1.7;max-width:480px}
+  .about-code .kw{color:var(--green-terminal)}
+  .about-code .str{color:var(--amber)}
+  .about-code .cm{color:var(--green-dim)}
+  .about-code .fn{color:var(--accent)}
+  .about-sidebar{border-left:2px solid var(--border);display:grid;grid-template-rows:1fr 1fr 1fr}
+  .stat-card{padding:40px 36px;border-bottom:2px solid var(--border);display:flex;flex-direction:column;justify-content:center;transition:background 0.2s}
+  .stat-card:last-child{border-bottom:none}
+  .stat-card:hover{background:var(--green-pale)}
+  .stat-number{font-family:var(--font-display);font-size:clamp(40px,5vw,64px);font-weight:400;line-height:1;color:var(--accent)}
+  .stat-label{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-top:8px}
+
+  /* ═══ FEATURES ═══ */
+  .features{border-bottom:2px solid var(--border)}
+  .features-header{padding:72px 56px 36px;border-bottom:2px solid var(--border);display:flex;justify-content:space-between;align-items:flex-end}
+  .features-title{font-family:var(--font-display);font-size:clamp(32px,4.5vw,52px);font-weight:400}
+  .features-grid{display:grid;grid-template-columns:repeat(4,1fr)}
+  .feature-card{padding:40px 28px;border-right:2px solid var(--border);display:flex;flex-direction:column;gap:14px;transition:background 0.2s,transform 0.2s;cursor:default}
+  .feature-card:last-child{border-right:none}
+  .feature-card:hover{background:var(--green-pale);transform:translateY(-4px)}
+  .feature-idx{font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim)}
+  .feature-name{font-family:var(--font-display);font-size:22px;font-weight:400;line-height:1.2}
+  .feature-desc{font-size:13px;color:var(--muted);line-height:1.55}
+
+  /* ═══ TERMINAL SECTION ═══ */
+  .terminal-section{background:var(--fg);border-bottom:2px solid var(--border);overflow:hidden}
+  .terminal-section-inner{padding:72px 56px}
+  .terminal-window{max-width:900px;margin:0 auto;border:2px solid var(--green-dim);background:rgba(5,5,5,0.95)}
+  .terminal-titlebar{display:flex;align-items:center;gap:6px;padding:10px 16px;border-bottom:2px solid var(--green-dim);background:rgba(20,20,20,0.9)}
+  .terminal-titlebar .dot{width:10px;height:10px;border-radius:50%;border:1.5px solid}
+  .terminal-titlebar .dot.r{border-color:var(--red);background:var(--red)}
+  .terminal-titlebar .dot.y{border-color:var(--amber);background:var(--amber)}
+  .terminal-titlebar .dot.g{border-color:var(--green);background:var(--green)}
+  .terminal-titlebar .title{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green-dim);margin-left:12px}
+  .terminal-output{padding:24px;font-size:12px;line-height:1.8;color:var(--green-light);height:340px;overflow-y:auto}
+  .terminal-output .line{opacity:0;animation:term-appear 0.3s forwards}
+  .terminal-output .prompt-text{color:var(--green-terminal)}
+  .terminal-output .success-text{color:var(--green-terminal)}
+  .terminal-output .warn-text{color:var(--amber)}
+  .terminal-output .error-text{color:var(--red)}
+  .terminal-output .dim-text{color:var(--green-dim)}
+  .terminal-output .accent-text{color:var(--accent)}
+  .terminal-output .white-text{color:var(--surface)}
+  @keyframes term-appear{to{opacity:1}}
+
+  /* ═══ ALGORITHMIC SHOWCASE ═══ */
+  .algo-section{background:var(--fg);color:var(--surface);position:relative;overflow:hidden;border-bottom:2px solid var(--border)}
+  .algo-header{padding:72px 56px 0;position:relative;z-index:2}
+  .algo-title{font-family:var(--font-display);font-size:clamp(32px,5vw,64px);font-weight:400;line-height:1.05;margin-bottom:12px}
+  .algo-sub{color:var(--muted);font-size:14px;max-width:520px;line-height:1.6}
+  .algo-canvas-wrap{position:relative;z-index:1;padding:40px 0}
+  #algoCanvas{display:block;width:100%;height:420px}
+  .algo-hint{text-align:center;font-size:10px;color:var(--green-dim);letter-spacing:0.15em;text-transform:uppercase;padding-bottom:32px}
+
+  /* ═══ PROCESS ═══ */
+  .process{border-bottom:2px solid var(--border)}
+  .process-header{padding:72px 56px 48px}
+  .process-title{font-family:var(--font-display);font-size:clamp(32px,4.5vw,52px);font-weight:400}
+  .process-steps{display:grid;grid-template-columns:repeat(3,1fr)}
+  .step{padding:56px 44px;border-right:2px solid var(--border);transition:background 0.2s;position:relative}
+  .step:last-child{border-right:none}
+  .step:hover{background:oklch(96% 0.003 120)}
+  .step-number{font-family:var(--font-display);font-size:clamp(48px,6vw,96px);font-weight:400;color:oklch(90% 0.004 240);line-height:1;margin-bottom:12px}
+  .step-name{font-family:var(--font-display);font-size:28px;font-weight:400;margin-bottom:12px}
+  .step-desc{font-size:14px;color:var(--muted);line-height:1.65}
+  .step-ascii{font-family:var(--font-mono);font-size:9px;line-height:1.15;color:var(--green-dim);margin-top:20px;white-space:pre}
+
+  /* ═══ TICKER ═══ */
+  .ticker{border-top:2px solid var(--border);border-bottom:2px solid var(--border);padding:14px 0;overflow:hidden;white-space:nowrap;background:var(--fg)}
+  .ticker-inner{display:inline-flex;gap:48px;animation:ticker-slide 22s linear infinite;font-size:12px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim)}
+  @keyframes ticker-slide{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .ticker-inner .green{color:var(--green-terminal)}
+  .ticker-inner .red{color:var(--red)}
+
+  /* ═══ CTA ═══ */
+  .cta{padding:140px 48px;text-align:center;background:var(--accent);color:var(--surface);position:relative;overflow:hidden}
+  .cta-inner{position:relative;z-index:2}
+  .cta-eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:24px;opacity:0.85}
+  .cta-heading{font-family:var(--font-display);font-size:clamp(48px,9vw,120px);font-weight:400;line-height:0.88;margin-bottom:28px}
+  .cta-sub{font-size:15px;opacity:0.85;max-width:480px;margin:0 auto 48px;line-height:1.6}
+  .btn-cta{background:var(--fg);color:var(--surface);border:2px solid var(--fg);padding:16px 48px;font-family:var(--font-mono);font-size:14px;text-transform:uppercase;letter-spacing:0.1em;cursor:pointer;display:inline-flex;align-items:center;gap:12px;transition:transform 0.15s,box-shadow 0.15s}
+  .btn-cta:hover{transform:translateY(-3px);box-shadow:0 0 24px rgba(196,69,69,0.5)}
+  .cta-grid{position:absolute;inset:0;opacity:0.06;background:repeating-linear-gradient(90deg,var(--surface) 0px,var(--surface) 1px,transparent 1px,transparent 48px),repeating-linear-gradient(0deg,var(--surface) 0px,var(--surface) 1px,transparent 1px,transparent 48px);pointer-events:none}
+  .cta-ascii{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:8px;line-height:1.1;color:rgba(255,255,255,0.12);white-space:pre;font-family:var(--font-mono);pointer-events:none;z-index:1}
+
+  /* ═══ FOOTER ═══ */
+  footer{padding:28px 32px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--green-dim);border-top:2px solid var(--border);background:var(--fg)}
+  footer a{color:var(--green-light);text-decoration:none;transition:color 0.15s}
+  footer a:hover{color:var(--green-terminal)}
+  .footer-links{display:flex;gap:24px;list-style:none}
+
+  /* ═══ REVEAL ═══ */
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity 0.6s ease,transform 0.6s ease}
+  .reveal.visible{opacity:1;transform:translateY(0)}
+
+  /* ═══ RESPONSIVE ═══ */
+  @media(max-width:1024px){
+    .hero-inner{grid-template-columns:1fr}
+    .hero-content{padding:60px 32px}
+    .hero-ascii{display:none}
+    .about{grid-template-columns:1fr}
+    .about-sidebar{border-left:none;border-top:2px solid var(--border);grid-template-columns:repeat(3,1fr);grid-template-rows:auto}
+    .features-grid{grid-template-columns:repeat(2,1fr)}
+    .feature-card:nth-child(2){border-right:none}
+    .feature-card:nth-child(1),.feature-card:nth-child(2){border-bottom:2px solid var(--border)}
+    .process-steps{grid-template-columns:1fr}
+    .step{border-right:none;border-bottom:2px solid var(--border)}
+    .step:last-child{border-bottom:none}
+  }
+  @media(max-width:640px){
+    .nav-links{display:none}
+    nav{padding:0 20px}
+    .about-main{padding:48px 20px}
+    .about-sidebar{grid-template-columns:1fr}
+    .features-grid{grid-template-columns:1fr}
+    .feature-card{border-right:none;border-bottom:2px solid var(--border)}
+    .feature-card:last-child{border-bottom:none}
+    .features-header{padding:48px 20px 24px;flex-direction:column;gap:12px}
+    .process-header{padding:48px 20px 32px}
+    .step{padding:32px 20px}
+    .hero-actions{flex-direction:column;align-items:stretch}
+    .btn-primary,.btn-secondary{justify-content:center}
+    .algo-header{padding:48px 20px 0}
+    #algoCanvas{height:280px}
+    .terminal-section-inner{padding:48px 20px}
+    .terminal-output{height:260px;padding:16px}
+    .cta{padding:80px 20px}
+    .btn-cta{width:100%;justify-content:center}
+    footer{flex-direction:column;gap:16px;text-align:center}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <span class="prefix">&gt;_</span>
+    <span class="name">Trading<span>Hunter</span></span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#about">about</a></li>
+    <li><a href="#features">systems</a></li>
+    <li><a href="#terminal">terminal</a></li>
+    <li><a href="#process">process</a></li>
+  </ul>
+  <button class="nav-cta" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'})">run sandbox →</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <canvas id="heroCanvas"></canvas>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-eyebrow"><span class="rec-dot"></span> SYS.INIT // AGENT SANDBOX v0.4.1</div>
+      <h1 class="hero-title"><span class="glitch" data-text="Trading">Trading</span><span class="accent">Hunter</span></h1>
+      <p class="hero-sub">Build, train, and deploy AI trading agents in a sandbox environment. No real money at stake — just algorithms, strategy, and the hunt for alpha.</p>
+      <div class="hero-actions">
+        <a href="#cta" class="btn-primary">▶ run agent</a>
+        <a href="#about" class="btn-secondary">cat README.md</a>
+      </div>
+    </div>
+    <div class="hero-ascii">
+      <div class="live-indicator">LIVE</div>
+      <div class="terminal-bar">
+        <div class="terminal-dot r"></div>
+        <div class="terminal-dot y"></div>
+        <div class="terminal-dot g"></div>
+        <span class="terminal-title">agent_hunter.exe — session #0047</span>
+      </div>
+      <div class="terminal-body">
+        <div class="ascii-art" id="asciiBot">
+         ██████╗ █████╗ ██╗  ██╗██████╗  ██████╗
+        ██╔════╝██╔══██╗██║ ██╔╝██╔══██╗██╔════╝
+        ██║     ███████║█████╔╝ ██████╔╝██║  ███╗
+        ██║     ██╔══██║██╔═██╗ ██╔══██╗██║   ██║
+        ╚██████╗██║  ██║██║  ██╗██████╔╝╚██████╔╝
+         ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝
+        ┌─────────────────────────────────────┐
+        │  ▓▓▓▓▓▓▓▓▓░░░░░░░░░  AGENT ACTIVE  │
+        │  ┌───┐  ┌───┐  ┌───┐  ┌───┐        │
+        │  │ ▲ │  │ ▼ │  │ ● │  │ ◆ │        │
+        │  └───┘  └───┘  └───┘  └───┘        │
+        │  BTC+4.2 ETH-1.8 SOL+0.7 MEM+12    │
+        │  ████████████░░░░░░  SIGNAL: BUY    │
+        └─────────────────────────────────────┘
+              │
+         ┌────┴────┐
+         │  ◉   ◉  │  ← scanner active
+         │  ┗━━━┛  │  ← processing
+         │  ┌─┐┌─┐ │
+         │  │░││▓│ │  ← memory banks
+         │  └─┘└─┘ │
+         └─────────┘
+              │
+         ╔════╧════╗
+         ║ RUN: 47m ║
+         ║ P&L: +12 ║
+         ╚══════════╝</div>
+      </div>
+      <div class="terminal-log">
+        <div><span class="prompt">$</span> <span class="dim-text">agent.deploy --sandbox --pair BTC/USD</span></div>
+        <div><span class="success-text">✓</span> <span class="dim-text">Agent initialized. Capital: 10,000 USDT</span></div>
+        <div><span class="warn-text">⚠</span> <span class="dim-text">Volatility detected: ATR(14) = 1,847</span></div>
+        <div><span class="success-text">✓</span> <span class="dim-text">Signal: LONG BTC @ 67,842</span></div>
+        <div class="cursor-blink"><span class="prompt">$</span> <span class="dim-text">_</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="about" id="about">
+  <div class="about-main reveal">
+    <div class="sec-label">001 / what_is_this</div>
+    <h2 class="about-heading">An AI agent playground<br>for <span class="hl">trading strategies</span>.</h2>
+    <p class="about-text">TradingHunter is a sandbox where game developers and traders build AI agents that trade, compete, and evolve. Design your bot's logic, backtest against historical data, and deploy into live sandbox matches — all without risking real capital.</p>
+    <div class="about-code">
+      <span class="cm">// initialize your agent</span><br>
+      <span class="kw">const</span> agent = <span class="kw">new</span> <span class="fn">Hunter</span>({<br>
+      &nbsp;&nbsp;capital: <span class="str">10_000</span>,<br>
+      &nbsp;&nbsp;strategy: <span class="str">'momentum_reversal'</span>,<br>
+      &nbsp;&nbsp;risk: { maxDrawdown: <span class="str">0.08</span> },<br>
+      &nbsp;&nbsp;sandbox: <span class="kw">true</span><br>
+      });<br><br>
+      <span class="cm">// deploy to arena</span><br>
+      <span class="kw">await</span> agent.<span class="fn">deploy</span>();<br>
+      <span class="cm">// → Agent #0047 LIVE in sandbox</span>
+    </div>
+  </div>
+  <div class="about-sidebar">
+    <div class="stat-card reveal">
+      <div class="stat-number">∞</div>
+      <div class="stat-label">Sandbox iterations</div>
+    </div>
+    <div class="stat-card reveal">
+      <div class="stat-number">0</div>
+      <div class="stat-label">Real money at risk</div>
+    </div>
+    <div class="stat-card reveal">
+      <div class="stat-number">24/7</div>
+      <div class="stat-label">Agent runtime</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="features-header">
+    <h2 class="features-title">Core systems</h2>
+    <div class="sec-label" style="margin-bottom:0">04 / modules</div>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-idx">::01</div>
+      <svg viewBox="0 0 48 48" width="48" height="48" style="shape-rendering:crispEdges">
+        <rect x="4" y="8" width="40" height="32" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <polyline points="8,36 16,28 24,32 32,20 40,16" fill="none" stroke="#5B7E3C" stroke-width="2.5"/>
+        <rect x="8" y="8" width="8" height="2" fill="#C44545"/>
+      </svg>
+      <h3 class="feature-name">Agent Builder</h3>
+      <p class="feature-desc">Design AI trading agents with custom logic, risk parameters, and market signals. Code or configure — your call.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-idx">::02</div>
+      <svg viewBox="0 0 48 48" width="48" height="48" style="shape-rendering:crispEdges">
+        <rect x="8" y="4" width="32" height="40" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="12" y="8" width="24" height="2" fill="#1a1a1a"/>
+        <rect x="12" y="14" width="16" height="2" fill="#5B7E3C"/>
+        <rect x="12" y="20" width="20" height="2" fill="#5B7E3C"/>
+        <rect x="12" y="26" width="12" height="2" fill="#A2CB8B"/>
+        <rect x="12" y="32" width="18" height="2" fill="#A2CB8B"/>
+      </svg>
+      <h3 class="feature-name">Backtesting</h3>
+      <p class="feature-desc">Run your agent against years of historical market data. See how your strategy would have performed before going live.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-idx">::03</div>
+      <svg viewBox="0 0 48 48" width="48" height="48" style="shape-rendering:crispEdges">
+        <circle cx="24" cy="16" r="10" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <circle cx="16" cy="36" r="8" fill="none" stroke="#5B7E3C" stroke-width="2"/>
+        <circle cx="34" cy="36" r="8" fill="none" stroke="#C44545" stroke-width="2"/>
+        <line x1="17" y1="23" x2="19" y2="29" stroke="#1a1a1a" stroke-width="1.5"/>
+        <line x1="31" y1="23" x2="29" y2="29" stroke="#1a1a1a" stroke-width="1.5"/>
+        <line x1="23" y1="30" x2="27" y2="30" stroke="#1a1a1a" stroke-width="1.5"/>
+      </svg>
+      <h3 class="feature-name">Arena Mode</h3>
+      <p class="feature-desc">Pit your agent against other traders' bots in live sandbox matches. Climb the leaderboard, learn from defeats, iterate.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-idx">::04</div>
+      <svg viewBox="0 0 48 48" width="48" height="48" style="shape-rendering:crispEdges">
+        <rect x="6" y="6" width="16" height="16" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="26" y="6" width="16" height="16" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="6" y="26" width="16" height="16" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="26" y="26" width="16" height="16" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="10" y="10" width="4" height="4" fill="#5B7E3C"/>
+        <rect x="30" y="10" width="4" height="4" fill="#A2CB8B"/>
+        <rect x="10" y="30" width="4" height="4" fill="#A2CB8B"/>
+        <rect x="30" y="30" width="4" height="4" fill="#C44545"/>
+      </svg>
+      <h3 class="feature-name">Evolution Lab</h3>
+      <p class="feature-desc">Breed and mutate agent parameters. Use genetic algorithms to evolve strategies that no human would design.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TERMINAL SECTION -->
+<section class="terminal-section" id="terminal">
+  <div class="terminal-section-inner">
+    <div class="sec-label" style="color:var(--green-light);margin-bottom:32px">002 / live_agent_log</div>
+    <div class="terminal-window">
+      <div class="terminal-titlebar">
+        <div class="dot r"></div>
+        <div class="dot y"></div>
+        <div class="dot g"></div>
+        <span class="title">tradinghunter — agent #0047 — sandbox</span>
+      </div>
+      <div class="terminal-output" id="terminalOutput"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ALGORITHMIC SHOWCASE -->
+<section class="algo-section" id="algo">
+  <div class="algo-header reveal">
+    <div class="sec-label" style="color:var(--green-light)">003 / agent_visualization</div>
+    <h2 class="algo-title">Watch algorithms<br>think in real time.</h2>
+    <p class="algo-sub">Every agent leaves a trace. This flow field is generated from live sandbox data — each particle is a decision, each trail a strategy unfolding. Move your cursor to influence the field.</p>
+  </div>
+  <div class="algo-canvas-wrap">
+    <canvas id="algoCanvas"></canvas>
+  </div>
+  <div class="algo-hint">↕ move cursor to interact ↕</div>
+</section>
+
+<!-- PROCESS -->
+<section class="process" id="process">
+  <div class="process-header">
+    <div class="sec-label">004 / how_it_works</div>
+    <h2 class="process-title">Three steps to the hunt.</h2>
+  </div>
+  <div class="process-steps">
+    <div class="step reveal">
+      <div class="step-number">01</div>
+      <h3 class="step-name">Design</h3>
+      <p class="step-desc">Write your agent's trading logic — signal processing, entry/exit rules, risk management. Use our SDK or the visual editor.</p>
+      <div class="step-ascii">┌──────────────┐
+│  > design     │
+│  ┌──┐ ┌──┐   │
+│  │IF│→│BUY│   │
+│  └──┘ └──┘   │
+│  ┌──┐ ┌──┐   │
+│  │MA│→│SELL│  │
+│  └──┘ └──┘   │
+└──────┬───────┘
+       ▼</div>
+    </div>
+    <div class="step reveal">
+      <div class="step-number">02</div>
+      <h3 class="step-name">Train</h3>
+      <p class="step-desc">Backtest against historical data. Iterate on parameters. Run Monte Carlo simulations. Stress-test across market regimes.</p>
+      <div class="step-ascii">┌──────────────┐
+│  > train      │
+│  ▓▓▓▓░░░ 62% │
+│  ▓▓▓▓▓▓░ 87% │
+│  ▓▓▓▓▓▓▓ 94% │
+│  ──┬──┬──┬── │
+│    ↗  ↗  ↗   │
+└──────┬───────┘
+       ▼</div>
+    </div>
+    <div class="step reveal">
+      <div class="step-number">03</div>
+      <h3 class="step-name">Compete</h3>
+      <p class="step-desc">Deploy into the sandbox arena. Your agent trades 24/7 against other bots. Climb the ranks. Learn. Evolve. Repeat.</p>
+      <div class="step-ascii">┌──────────────┐
+│  > arena      │
+│  ╔═══╦═══╗   │
+│  ║ #1 ║ W ║   │
+│  ║ #2 ║ L ║   │
+│  ║ #3 ║ W ║   │
+│  ╚═══╩═══╝   │
+│  RANK: 47 ↗   │
+└──────────────┘</div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    <span><span class="green">▲</span> BTC/USD 67,842</span>
+    <span><span class="red">▼</span> ETH/USD 3,421</span>
+    <span><span class="green">▲</span> SOL/USD 142.8</span>
+    <span><span class="green">▲</span> AGENT-01 +12.4%</span>
+    <span><span class="red">▼</span> AGENT-02 −3.1%</span>
+    <span>ARENA #47 LIVE</span>
+    <span>━━━</span>
+    <span><span class="green">▲</span> BTC/USD 67,842</span>
+    <span><span class="red">▼</span> ETH/USD 3,421</span>
+    <span><span class="green">▲</span> SOL/USD 142.8</span>
+    <span><span class="green">▲</span> AGENT-01 +12.4%</span>
+    <span><span class="red">▼</span> AGENT-02 −3.1%</span>
+    <span>ARENA #47 LIVE</span>
+    <span>━━━</span>
+    <span><span class="green">▲</span> BTC/USD 67,842</span>
+    <span><span class="red">▼</span> ETH/USD 3,421</span>
+    <span><span class="green">▲</span> SOL/USD 142.8</span>
+    <span><span class="green">▲</span> AGENT-01 +12.4%</span>
+    <span><span class="red">▼</span> AGENT-02 −3.1%</span>
+    <span>ARENA #47 LIVE</span>
+    <span>━━━</span>
+  </div>
+</div>
+
+<!-- CTA -->
+<section class="cta" id="cta">
+  <div class="cta-grid"></div>
+  <div class="cta-ascii">
+         ██████╗ █████╗ ██╗  ██╗██████╗  ██████╗
+        ██╔════╝██╔══██╗██║ ██╔╝██╔══██╗██╔════╝
+        ██║     ███████║█████╔╝ ██████╔╝██║  ███╗
+        ██║     ██╔══██║██╔═██╗ ██╔══██╗██║   ██║
+        ╚██████╗██║  ██║██║  ██╗██████╔╝╚██████╔╝
+         ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝
+  </div>
+  <div class="cta-inner">
+    <div class="cta-eyebrow">005 / init_arena</div>
+    <h2 class="cta-heading">Start your hunt.</h2>
+    <p class="cta-sub">The sandbox is free. The arena is open. Build your first AI trading agent and see how it performs — no deposit, no risk.</p>
+    <button class="btn-cta" id="ctaBtn">▶ ./run_sandbox</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>© 2025 TradingHunter — <span style="color:var(--green-dim)">v0.4.1</span></div>
+  <ul class="footer-links">
+    <li><a href="#">docs</a></li>
+    <li><a href="#">github</a></li>
+    <li><a href="#">discord</a></li>
+    <li><a href="#">x.com</a></li>
+  </ul>
+</footer>
+
+<script>
+/* ═══ HERO CANVAS — Algorithmic Particle Flow ═══ */
+(function(){
+  var c = document.getElementById('heroCanvas');
+  var ctx = c.getContext('2d');
+  var particles = [];
+  var PARTICLE_COUNT = 160;
+
+  function resize(){
+    c.width = c.offsetWidth * devicePixelRatio;
+    c.height = c.offsetHeight * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.fillStyle = 'rgb(15,15,15)';
+    ctx.fillRect(0, 0, c.offsetWidth, c.offsetHeight);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function Particle(){
+    this.reset();
+  }
+  Particle.prototype.reset = function(){
+    this.x = Math.random() * c.offsetWidth;
+    this.y = Math.random() * c.offsetHeight;
+    this.speed = 0.3 + Math.random() * 0.8;
+    this.size = 1 + Math.random() * 2;
+    this.life = 0;
+    this.maxLife = 200 + Math.random() * 300;
+    var r = Math.random();
+    this.color = r < 0.5 ? 'rgba(162,203,139,' : r < 0.8 ? 'rgba(91,126,60,' : 'rgba(196,69,69,';
+  };
+  Particle.prototype.update = function(time){
+    var w = c.offsetWidth, h = c.offsetHeight;
+    var angle = Math.sin(this.x * 0.003 + time * 0.0003) * Math.cos(this.y * 0.003 + time * 0.0002) * Math.PI * 2;
+    this.x += Math.cos(angle) * this.speed;
+    this.y += Math.sin(angle) * this.speed * 0.6;
+    this.life++;
+    if(this.life > this.maxLife || this.x < -10 || this.x > w + 10 || this.y < -10 || this.y > h + 10) this.reset();
+  };
+  Particle.prototype.draw = function(ctx){
+    var alpha = Math.max(0, 1 - this.life / this.maxLife);
+    ctx.fillStyle = this.color + (alpha * 0.6).toFixed(2) + ')';
+    ctx.fillRect(Math.round(this.x), Math.round(this.y), Math.round(this.size), Math.round(this.size));
+  };
+
+  for(var i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+
+  var startTime = performance.now();
+  function animate(){
+    var time = performance.now() - startTime;
+    ctx.fillStyle = 'rgba(15,15,15,0.06)';
+    ctx.fillRect(0, 0, c.offsetWidth, c.offsetHeight);
+    for(var i = 0; i < particles.length; i++){
+      particles[i].update(time);
+      particles[i].draw(ctx);
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+
+/* ═══ ALGO CANVAS — Interactive Flow Field ═══ */
+(function(){
+  var c = document.getElementById('algoCanvas');
+  var ctx = c.getContext('2d');
+  var particles = [];
+  var PARTICLE_COUNT = 280;
+  var mouseX = 0.5, mouseY = 0.5;
+
+  c.addEventListener('mousemove', function(e){
+    var r = c.getBoundingClientRect();
+    mouseX = (e.clientX - r.left) / r.width;
+    mouseY = (e.clientY - r.top) / r.height;
+  });
+  c.addEventListener('touchmove', function(e){
+    e.preventDefault();
+    var r = c.getBoundingClientRect();
+    mouseX = (e.touches[0].clientX - r.left) / r.width;
+    mouseY = (e.touches[0].clientY - r.top) / r.height;
+  }, {passive:false});
+
+  function resize(){
+    c.width = c.offsetWidth * devicePixelRatio;
+    c.height = c.offsetHeight * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.fillStyle = 'rgb(15,15,15)';
+    ctx.fillRect(0, 0, c.offsetWidth, c.offsetHeight);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function Particle2(){
+    this.reset();
+  }
+  Particle2.prototype.reset = function(){
+    this.x = Math.random() * c.offsetWidth;
+    this.y = Math.random() * c.offsetHeight;
+    this.speed = 0.4 + Math.random() * 1.2;
+    this.size = 1 + Math.random() * 1.5;
+    this.life = 0;
+    this.maxLife = 150 + Math.random() * 250;
+    var r = Math.random();
+    this.hue = r < 0.45 ? 100 : r < 0.75 ? 80 : 0;
+    this.sat = r < 0.75 ? '50%' : '55%';
+    this.light = r < 0.75 ? '55%' : '50%';
+  };
+  Particle2.prototype.update = function(time){
+    var w = c.offsetWidth, h = c.offsetHeight;
+    var mx = mouseX * w, my = mouseY * h;
+    var dx = this.x - mx, dy = this.y - my;
+    var dist = Math.sqrt(dx*dx + dy*dy) + 1;
+    var influence = Math.max(0, 1 - dist / 300);
+    var baseAngle = Math.sin(this.x * 0.004 + time * 0.0004) * Math.cos(this.y * 0.004 + time * 0.0003) * Math.PI * 2;
+    var mouseAngle = Math.atan2(dy, dx) + Math.PI * 0.5;
+    var angle = baseAngle + mouseAngle * influence * 0.8;
+    this.x += Math.cos(angle) * this.speed * (1 + influence * 2);
+    this.y += Math.sin(angle) * this.speed * (1 + influence * 2);
+    this.life++;
+    if(this.life > this.maxLife || this.x < -20 || this.x > w + 20 || this.y < -20 || this.y > h + 20) this.reset();
+  };
+  Particle2.prototype.draw = function(ctx){
+    var alpha = Math.max(0, 1 - this.life / this.maxLife) * 0.6;
+    ctx.fillStyle = 'hsla(' + this.hue + ',' + this.sat + ',' + this.light + ',' + alpha.toFixed(2) + ')';
+    ctx.fillRect(Math.round(this.x), Math.round(this.y), Math.round(this.size), Math.round(this.size));
+  };
+
+  for(var i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle2());
+
+  var startTime = performance.now();
+  function animate(){
+    var time = performance.now() - startTime;
+    ctx.fillStyle = 'rgba(15,15,15,0.05)';
+    ctx.fillRect(0, 0, c.offsetWidth, c.offsetHeight);
+    for(var i = 0; i < particles.length; i++){
+      particles[i].update(time);
+      particles[i].draw(ctx);
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+
+/* ═══ TERMINAL TYPING ═══ */
+(function(){
+  var lines = [
+    { type: 'prompt', text: '$ agent init --sandbox --id 0047' },
+    { type: 'success', text: '✓ Agent #0047 initialized' },
+    { type: 'dim', text: '  Capital: 10,000 USDT | Leverage: 1x | Mode: Paper' },
+    { type: 'prompt', text: '$ agent strategy set --name momentum_reversal' },
+    { type: 'success', text: '✓ Strategy loaded: momentum_reversal v3.2.1' },
+    { type: 'dim', text: '  Indicators: EMA(9), RSI(14), ATR(14), MACD(12,26,9)' },
+    { type: 'prompt', text: '$ agent backtest --period 365d --pairs BTC/USD,ETH/USD' },
+    { type: 'dim', text: '  Running backtest ████████████████████ 100%' },
+    { type: 'success', text: '✓ Backtest complete: +23.7% ROI | Max DD: 6.2% | Sharpe: 1.84' },
+    { type: 'warn', text: '⚠ High volatility window detected: ATR=1,847' },
+    { type: 'prompt', text: '$ agent deploy --arena 47 --live' },
+    { type: 'success', text: '✓ Agent #0047 deployed to Arena #47' },
+    { type: 'dim', text: '  ┌─────────────────────────────────────┐' },
+    { type: 'dim', text: '  │  ARENA #47 │ 3 AGENTS │ STATUS: LIVE │' },
+    { type: 'dim', text: '  │  #0047  ▓▓▓▓▓▓▓▓░░  +4.2%          │' },
+    { type: 'dim', text: '  │  #0031  ▓▓▓▓▓░░░░░  -1.8%          │' },
+    { type: 'dim', text: '  │  #0092  ▓▓▓▓▓▓▓░░░  +0.7%          │' },
+    { type: 'dim', text: '  └─────────────────────────────────────┘' },
+    { type: 'prompt', text: '$ _' },
+  ];
+
+  var output = document.getElementById('terminalOutput');
+  var lineIndex = 0;
+  var charIndex = 0;
+  var currentLine = null;
+
+  function typeLine(){
+    if(lineIndex >= lines.length) return;
+    var lineData = lines[lineIndex];
+
+    if(charIndex === 0){
+      currentLine = document.createElement('div');
+      currentLine.className = 'line';
+      currentLine.style.animationDelay = '0s';
+      var spanClass = '';
+      if(lineData.type === 'prompt') spanClass = 'prompt-text';
+      else if(lineData.type === 'success') spanClass = 'success-text';
+      else if(lineData.type === 'warn') spanClass = 'warn-text';
+      else if(lineData.type === 'dim') spanClass = 'dim-text';
+      currentLine.innerHTML = '<span class="' + spanClass + '"></span>';
+      output.appendChild(currentLine);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    var span = currentLine.querySelector('span');
+    if(charIndex < lineData.text.length){
+      span.textContent += lineData.text[charIndex];
+      charIndex++;
+      var delay = lineData.type === 'prompt' ? 25 : lineData.type === 'dim' ? 8 : 12;
+      setTimeout(typeLine, delay);
+    } else {
+      lineIndex++;
+      charIndex = 0;
+      setTimeout(typeLine, lineData.type === 'prompt' ? 400 : 150);
+    }
+  }
+
+  var termObs = new IntersectionObserver(function(entries){
+    if(entries[0].isIntersecting){
+      setTimeout(typeLine, 600);
+      termObs.disconnect();
+    }
+  }, {threshold: 0.3});
+  termObs.observe(output);
+})();
+
+/* ═══ SCROLL REVEAL ═══ */
+var obs = new IntersectionObserver(function(entries){
+  entries.forEach(function(entry){
+    if(entry.isIntersecting) entry.target.classList.add('visible');
+  });
+}, {threshold: 0.1});
+document.querySelectorAll('.reveal').forEach(function(el){ obs.observe(el); });
+
+/* ═══ CTA BUTTON ═══ */
+document.getElementById('ctaBtn').addEventListener('click', function(){
+  var btn = this;
+  var orig = btn.textContent;
+  btn.textContent = '> initializing sandbox...';
+  btn.style.pointerEvents = 'none';
+  setTimeout(function(){
+    btn.textContent = '> sandbox ready ✓';
+    setTimeout(function(){
+      btn.textContent = orig;
+      btn.style.pointerEvents = 'auto';
+    }, 1200);
+  }, 1400);
+});
+
+/* ═══ SMOOTH SCROLL ═══ */
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener('click', function(e){
+    e.preventDefault();
+    var t = document.querySelector(a.getAttribute('href'));
+    if(t) t.scrollIntoView({behavior:'smooth'});
+  });
+});
+</script>
+</body>
+</html>

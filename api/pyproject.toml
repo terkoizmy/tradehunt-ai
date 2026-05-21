@@ -1,0 +1,27 @@
+[project]
+name = "tradehunt-api"
+version = "0.1.0"
+description = "Tradehunt-ai backend API server"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.14",
+    "pydantic>=2",
+    "pydantic-settings>=2",
+    "python-dotenv>=1.0",
+    "web3>=7",
+    "websockets>=13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

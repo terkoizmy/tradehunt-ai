@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: tradehunt-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tradehunt}
+      POSTGRES_USER: ${POSTGRES_USER:-tradehunt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tradehunt_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tradehunt} -d ${POSTGRES_DB:-tradehunt}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tradehunt-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@tradehunt.ai
+      PGADMIN_DEFAULT_PASSWORD: tradehunt_admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+volumes:
+  pgdata:
