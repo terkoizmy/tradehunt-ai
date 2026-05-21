@@ -214,30 +214,481 @@ Right col (40% width):
 
 ---
 
-## STATE VARIANT: Dashboard — Empty States
+## PAGE 3: Dashboard — Empty State (No Agent Deployed)
 
-These are variants of `tradinghunter-sandbox-dashboard.html`:
+This is a complete variant of `tradinghunter-sandbox-dashboard.html`. The app shell (topbar, ticker, mobile tabs, terminal) stays the same. Only the main content area changes.
 
-### Variant A: No Agent Deployed
-- **Center chart**: replaced with centered CTA
-  - Large `--font-display` text: "Deploy your first agent"
-  - Subtext: "Configure your strategy and enter the arena"
-  - Green "▶ deploy agent" button (matches existing deploy button style)
-  - ASCII art of sleeping robot in background (opacity 0.05)
-- **Right panel PnL**: shows "—" with "No positions" label
-- **Terminal**: shows only init lines, no trade output
+### Layout (same app shell, different main content)
+```
+┌──────────────────────────────────────────────────────────┐
+│ TOPBAR (48px) — logo, nav, "NO AGENTS" indicator        │
+├──────────────────────────────────────────────────────────┤
+│ TICKER (32px) — scrolling prices (still live)           │
+├──────────────────────────────────────────────────────────┤
+│ MOBILE TABS (hidden on desktop)                          │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌─ LEFT PANEL (280px) ─┐  ┌─ CENTER AREA ───────────┐  │
+│  │ agent_config          │  │                          │  │
+│  │                       │  │   (empty chart area)     │  │
+│  │ [Select agent dropdown │  │                          │  │
+│  │  with "No agents       │  │   ┌─────────────────┐   │  │
+│  │  configured" option]  │  │   │  sleeping bot    │   │  │
+│  │                       │  │   │  ASCII art       │   │  │
+│  │ strategy buttons       │  │   │  (large, dim)   │   │  │
+│  │ [all disabled/50%]    │  │   │                  │   │  │
+│  │                       │  │   │  Deploy your     │   │  │
+│  │ parameters sliders     │  │   │  first agent     │   │  │
+│  │ [default values]      │  │   │                  │   │  │
+│  │                       │  │   │  Configure your  │   │  │
+│  │ risk inputs            │  │   │  strategy and    │   │  │
+│  │ [default values]      │  │   │  enter the arena │   │  │
+│  │                       │  │   │                  │   │  │
+│  │ toggles [all off]     │  │   │  [▶ deploy]      │   │  │
+│  │                       │  │   └─────────────────┘   │  │
+│  │ [▶ deploy agent]      │  │                          │  │
+│  │  button (green)       │  │                          │  │
+│  └───────────────────────┘  └──────────────────────────┘  │
+│                                                          │
+│  ┌─ RIGHT PANEL (300px) ──────────────────────────────┐  │
+│  │                                                      │  │
+│  │  unrealized P&L                                      │  │
+│  │  —                                                   │  │
+│  │  No active positions                                 │  │
+│  │                                                      │  │
+│  │  ┌─ empty sparkline (flat line at 0) ────────────┐  │  │
+│  │  └────────────────────────────────────────────────┘  │  │
+│  │                                                      │  │
+│  │  open positions                         0            │  │
+│  │  ┌────────────────────────────────────────────────┐  │  │
+│  │  │  No open positions                             │  │  │
+│  │  │  Deploy an agent to start trading              │  │  │
+│  │  └────────────────────────────────────────────────┘  │  │
+│  │                                                      │  │
+│  │  recent signals                         0            │  │
+│  │  ┌────────────────────────────────────────────────┐  │  │
+│  │  │  Waiting for agent signals...                  │  │  │
+│  │  │                                                │  │  │
+│  │  │  (terminal-like prompt)                        │  │  │
+│  │  │  $ _                                           │  │  │
+│  │  └────────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                          │
+├──────────────────────────────────────────────────────────┤
+│ TERMINAL (180px) — init messages only, idle prompt       │
+└──────────────────────────────────────────────────────────┘
+```
 
-### Variant B: Loading Skeleton
-- **Chart area**: dark bg with subtle pulsing placeholder bars
-- **PnL**: pulsing `--bg-panel` rectangle (width 120px × 32px)
-- **Positions**: 3 skeleton rows (pulsing rectangles)
-- **Signals**: 5 skeleton rows
-- **Terminal**: skeleton text lines
+### Topbar Changes
+- **Status area** (right side):
+  - LIVE indicator: replaced with gray dot + `--green-dim` text "IDLE"
+  - Agent ID: hidden (no agent deployed)
+- Everything else unchanged
 
-### Variant C: Connection Lost
-- **Topbar**: LIVE indicator turns red, text changes to "DISCONNECTED"
-- **Chart overlay**: centered warning "Connection lost — reconnecting..." with amber text
-- **Terminal**: yellow warning line "⚠ WebSocket disconnected"
+### Left Panel — Agent Config
+- **Agent Select dropdown**: Shows single disabled option "No agents configured" in `--green-dim`, grayed out
+- **Strategy buttons**: All 4 visible (momentum, mean_rev, breakout, custom) but at 50% opacity, not clickable. "momentum" shows as default selected.
+- **Parameter sliders**: Visible but at 50% opacity. Default positions (EMA 9, RSI 14, ATR 1.5). Labels and values still readable.
+- **Risk inputs**: Visible at 50% opacity. Default values shown (Max DD 8%, Position Size 2.5%, Stop Loss 3.2%, Take Profit 6.8%).
+- **Execution toggles**: All 3 visible in OFF state, 50% opacity.
+- **Deploy button**: FULL opacity green (`--green-terminal` background). Text: "▶ deploy agent". This is the primary CTA — it's the one interactive element on the page.
+
+### Center — Empty Chart Area
+- **Background**: `#080808` (same as normal chart)
+- **Layout**: flex column, centered both axes
+- **ASCII art** (centered, above text):
+  ```
+  Use `--green-dim` color, opacity 0.15, `--font-mono`, font-size 11px, line-height 1.1
+  The art should be a large sleeping/idle robot/bot:
+  
+        ┌──────────────────────┐
+        │  ████          ████  │
+        │  ████          ████  │
+        │  ██████████████████  │
+        │  ██████████████████  │      ← big empty eye sockets
+        │  ██    ██████    ██  │
+        │  ██  Z ██████ z  ██  │      ← sleeping Z's
+        │  ██    ██████    ██  │
+        │  ██████████████████  │
+        │  ██████████████████  │
+        │  ██  ██████████  ██  │
+        │  ██  ██████████  ██  │
+        │  ██              ██  │
+        │  ────────────────    │      ← flat line (flatline = idle)
+        └──────────────────────┘
+  ```
+- **Heading**: `--font-display`, `clamp(28px, 4vw, 40px)`, `--surface` color, margin-bottom 12px
+  - Text: "Deploy your first agent"
+- **Subtext**: `--font-body`, 14px, `#888` color, max-width 400px, text-align center, line-height 1.6, margin-bottom 32px
+  - Text: "Configure your strategy parameters, set risk limits, and enter the sandbox arena. No real money — just algorithms competing for alpha."
+- **CTA Button**: matches `.deploy-btn` style from dashboard:
+  - Background: `--green-terminal` (`#33ff33`)
+  - Text color: `--fg-dark` (`#0f0f0f`)
+  - Text: "▶ deploy agent"
+  - Font: `--font-mono`, 13px, uppercase, letter-spacing 0.12em, bold
+  - Padding: 14px 28px
+  - Border: none, no border-radius
+  - Hover state: `box-shadow: 0 0 20px rgba(51,255,51,0.3)`
+  - Not disabled — this is the primary action
+
+### Right Panel — Empty Stats
+- **PnL Section**:
+  - Label: "unrealized P&L" (same as normal), `--green-dim`, 9px uppercase
+  - Value: "—" (em dash), `--font-display`, 32px, `--green-dim` (not green, not red — neutral dim)
+  - Sub-text: "No active positions", 11px, `--green-dim`
+  - Sparkline: flat horizontal line at center, `--green-dim` color, opacity 0.3
+- **Positions Section**:
+  - Header: "open positions" label + count "0"
+  - Content: centered empty state inside a bordered area
+    - Text 1: "No open positions", 12px, `--green-dim`
+    - Text 2: "Deploy an agent to start trading", 10px, `#555`
+  - No column headers shown (since there are no positions)
+- **Signals Section**:
+  - Header: "recent signals" label + count "0"
+  - Content: centered empty state
+    - Terminal-prompt style: "$ _", `--font-mono`, 14px, `--green-dim`
+    - Below: "Waiting for agent signals...", 11px, `#555`
+
+### Terminal
+- Same structure as normal (titlebar with dots, output area, input line)
+- **Initial messages only** (no trade output, no live updates):
+  ```
+  TradingHunter v0.4.1 — AI Agent Trading Sandbox
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✓ System initialized
+  ✓ Arena #47 connected
+  ⚠ No agents deployed
+    Paper trading: ON | Capital: 10,000 USDT
+    Configure an agent and click "deploy" to start
+    Type "help" for available commands
+  $ _
+  ```
+- Input line active (user can type commands even without agent)
+- Colors: same terminal color scheme (prompt=green, success=green, warn=amber, dim=dim green)
+
+### Mobile Tabs
+- Same 4 tabs visible: 📊 chart, ⚙️ config, 📈 positions, 📡 signals
+- Chart tab shows the empty CTA (centered, with ASCII art)
+- Config tab shows the left panel (with deploy button active)
+- Positions tab shows the right panel positions section
+- Signals tab shows the right panel signals section
+
+---
+
+## PAGE 4: Dashboard — Loading Skeleton
+
+Complete variant for initial data fetch. App shell stays, all content areas show pulsing placeholders.
+
+### Layout (same app shell)
+```
+┌──────────────────────────────────────────────┐
+│ TOPBAR — logo, nav, muted status             │
+├──────────────────────────────────────────────┤
+│ TICKER — scrolling (still runs if data avail)│
+├──────────────────────────────────────────────┤
+│ MOBILE TABS                                   │
+├──────────────────────────────────────────────┤
+│                                               │
+│  ┌─ LEFT (280px) ─┐  ┌─ CENTER ──────────┐  │
+│  │ ██████████████  │  │                    │  │
+│  │ ██████████      │  │  ████████████████  │  │
+│  │ ██████████████  │  │  ████████████████  │  │
+│  │ ██████████      │  │  ████████████████  │  │
+│  │ ██████████████  │  │  ████████████████  │  │
+│  │ ██████████      │  │  ████████████████  │  │
+│  │ ██████████████  │  │  ████████████████  │  │
+│  │ ██████████      │  │  ████████████████  │  │
+│  │ ██████████████  │  │  ████████████████  │  │
+│  └─────────────────┘  │  ████████████████  │  │
+│                       └────────────────────┘  │
+│  ┌─ RIGHT (300px) ───────────────────────┐  │
+│  │          ████████████████              │  │
+│  │          ████████████                  │  │
+│  │          ██████████████████████        │  │
+│  │                                        │  │
+│  │  ██████████████████████████████        │  │
+│  │  ██████████████████████████████        │  │
+│  │  ██████████████████████████████        │  │
+│  │                                        │  │
+│  │  ██████████████████████████████        │  │
+│  │  ██████████████████████████████        │  │
+│  │  ██████████████████████████████        │  │
+│  │  ██████████████████████████████        │  │
+│  │  ██████████████████████████████        │  │
+│  └────────────────────────────────────────┘  │
+│                                               │
+├──────────────────────────────────────────────┤
+│ TERMINAL — skeleton text lines               │
+└──────────────────────────────────────────────┘
+```
+(█ = pulsing skeleton placeholder rectangles)
+
+### Skeleton Animation
+All skeleton elements share this animation:
+- **Base color**: `--bg-panel` (`#111111`)
+- **Shimmer**: lighter green tint `rgba(51,255,51,0.03)` to `rgba(51,255,51,0.06)` pulsing
+- **Animation**: `pulse` keyframe, 1.5s ease-in-out infinite
+  ```css
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+  ```
+- **Border-radius**: 0 (match design — sharp rectangles, no rounding)
+- **Border**: none on skeletons (just background-color blocks)
+
+### Topbar
+- **Status area**: Gray dot (not green, not red) + "LOADING..." text in `--green-dim`, 10px. Dots animate (first dot fades 0s, second 0.3s, third 0.6s — classic loading ellipsis).
+- Everything else unchanged
+
+### Left Panel Skeletons
+Each skeleton replaces a real config element. Widths and heights should roughly match:
+
+1. **Panel header**: `████████████` (80px × 12px)
+2. **Agent select dropdown**: Tall rectangle `████████████████████████████` (full width × 36px)
+3. **Strategy section title**: `██████████` (60px × 10px)
+4. **Strategy buttons**: 2×2 grid of rectangles, each 50% width × 36px
+5. **Parameters section title**: `██████████` (60px × 10px)
+6. **3 sliders**: Each — label rectangle (80px × 10px) + wide track rectangle (full width × 24px)
+7. **Risk section title**: `██████████` (70px × 10px)
+8. **4 input rows**: Each — label rectangle (70px × 10px) + input rectangle (64px × 28px) right-aligned
+9. **Execution section title**: `██████████` (60px × 10px)
+10. **3 toggle rows**: Each — label rectangle (80px × 10px) + toggle-sized rectangle (40px × 24px) right-aligned
+11. **Deploy button area**: Full-width rectangle (full width × 48px), slightly brighter green shimmer
+
+### Center — Chart Skeleton
+- **Background**: `#080808` (same as real chart)
+- **Chart toolbar skeleton**:
+  - Left: price label skeleton `████████████` (120px × 18px) + change badge skeleton `██████` (60px × 18px)
+  - Right: 6 timeframe button skeletons, each `████` (32px × 24px)
+- **Chart area skeleton**:
+  - Background: `#080808`
+  - 4-5 horizontal grid line skeletons: thin rectangles across width, spaced evenly, `rgba(26,58,26,0.15)`
+  - 2-3 candlestick bars as tall thin rectangles: green tint `rgba(51,255,51,0.08)` and red tint `rgba(196,69,69,0.08)` alternating, heights vary (60%–90% of chart height), width ~6px, spaced across
+  - EMA line: thin rectangle across width at ~65% height, `rgba(162,203,139,0.1)`, 1px tall
+  - Y-axis labels: left side, 5 small rectangles (`████` = 36px × 8px), spaced evenly vertically
+- **Chart overlay skeleton** (top-left):
+  - 4 rows: each `██████████████` (100px × 10px), stacked with 18px gap
+
+### Right Panel Skeletons
+- **PnL Section**:
+  - Label: `██████████` (80px × 9px), centered
+  - Value: `████████████████` (140px × 32px), centered
+  - Sub-text: `████████████` (100px × 11px), centered
+  - Sparkline: narrow rectangle full width × 36px, `rgba(51,255,51,0.05)`
+- **Positions Section**:
+  - Header: `████████████` (80px × 9px) left + `██` (20px × 10px) right
+  - Column headers: 3 rectangles in a row `██████ ██████ ██████` (each ~60px × 8px)
+  - 3 data rows: each 3 rectangles in a row, slightly different widths, `--bg-panel`, 10px height
+- **Signals Section**:
+  - Header: `██████████` (70px × 9px) left + `██` (20px × 10px) right
+  - 5 signal item skeletons: each a row with dot (6px × 6px) + time (32px × 9px) + text (120px × 9px) + badge (40px × 16px), spaced 12px apart
+
+### Terminal Skeleton
+- **Titlebar**: 3 dots (visible, static, not skeleton) + tab label skeleton `██████████` (60px × 10px)
+- **Output area**: 8-10 text line skeletons:
+  - Each: `████████████████████████████████████` (full width × 10px), varying lengths (60%-90% width)
+  - Stacked with 12px gap
+  - First one slightly greener (simulates prompt line)
+- **Input line**: `>` prompt (real, not skeleton, `--green-terminal`) + input skeleton `████████████████████████` (200px × 10px)
+
+### Mobile Tabs
+- Same 4 tabs, all visible
+- Each tab shows its corresponding skeleton content
+
+---
+
+## PAGE 5: Dashboard — Connection Lost / Error
+
+Complete variant when WebSocket or data feed disconnects. App shell darkens slightly, warning overlay appears.
+
+### Layout
+```
+┌──────────────────────────────────────────────┐
+│ TOPBAR — LIVE → DISCONNECTED (red)           │
+├──────────────────────────────────────────────┤
+│ TICKER — frozen (last known prices, dimmed)  │
+├──────────────────────────────────────────────┤
+│ MOBILE TABS (still functional)               │
+├──────────────────────────────────────────────┤
+│                                               │
+│  ┌────────────────────────────────────────────┐
+│  │                                            │
+│  │  ⚠                                         │
+│  │  Connection lost                            │
+│  │  The data feed has been interrupted.        │
+│  │  Your agent is still running but we can't   │
+│  │  display live updates right now.            │
+│  │                                            │
+│  │  Last update: 14:32:05 UTC                  │
+│  │  Reconnecting in 3...                       │
+│  │                                            │
+│  │  [⟳ Reconnect now]                         │
+│  │                                            │
+│  └────────────────────────────────────────────┘
+│                                               │
+│  (Center chart, left panel, right panel       │
+│   still visible behind overlay at 30% opacity)│
+│                                               │
+├──────────────────────────────────────────────┤
+│ TERMINAL — last messages frozen + warning     │
+└──────────────────────────────────────────────┘
+```
+
+### Topbar Changes
+- **Status area** (right side):
+  - LIVE indicator dot: changes from green to RED (`--red`), blinking faster (0.5s instead of 1s)
+  - Text: "DISCONNECTED" in `--red-light`, uppercase, 10px, letter-spacing 0.1em
+  - Agent ID: still shown (agent is still running), but dimmed (50% opacity)
+- **Everything else**: unchanged
+
+### Ticker
+- **Prices frozen** at last known values
+- **Animation stopped** (no scrolling)
+- **Dimmed**: opacity 0.4
+- Small red indicator added at left edge: "● OFFLINE" in `--red-light`, 8px uppercase
+
+### Main Overlay
+- **Position**: absolute, covers entire main content area (inset 0)
+- **Background**: `rgba(10,10,10,0.85)` — dark semi-transparent overlay
+- **Z-index**: above panels, below mobile tabs
+- **Content**: centered flex column, text-align center
+
+### Overlay Content
+1. **Warning icon** (top, large):
+   - `⚠` character, 48px, `--amber` color, margin-bottom 20px
+   - Subtle pulse animation (opacity 0.6→1, 2s infinite)
+
+2. **Heading**: `--font-display`, `clamp(24px, 3vw, 32px)`, `--amber` color, margin-bottom 12px
+   - Text: "Connection lost"
+
+3. **Description**: `--font-body`, 13px, `#888`, max-width 420px, line-height 1.6, margin-bottom 8px
+   - Text: "The data feed has been interrupted. Your agent is still running but we can't display live updates right now."
+
+4. **Last update timestamp**: `--font-body`, 11px, `--green-dim`, margin-bottom 28px
+   - Format: "Last update: 14:32:05 UTC"
+   - The timestamp should be from a real variable (frozen at disconnect time)
+
+5. **Countdown text**: `--font-body`, 12px, `--amber`, margin-bottom 20px
+   - Text: "Reconnecting in 3..." (counts down: 3, 2, 1, then "Reconnecting...")
+   - The number animates (countdown)
+   - After "Reconnecting..." stays for 5s, then loops back to "Reconnecting in 3..."
+
+6. **Retry button**:
+   - Background: transparent
+   - Border: 2px solid `--amber`
+   - Text color: `--amber`
+   - Text: "⟳ Reconnect now"
+   - Font: `--font-mono`, 12px, uppercase, letter-spacing 0.08em
+   - Padding: 12px 28px
+   - Hover: border color → `--amber` brighter, `box-shadow: 0 0 16px rgba(212,160,23,0.3)`
+   - Cursor: pointer
+
+### Panels Behind Overlay
+All three panels (left config, center chart, right stats) remain visible but:
+- **Opacity**: 0.3
+- **Pointer events**: none (can't interact)
+- **Last known data** frozen in place
+- Chart shows last candles (dimmed, frozen — no new candles appearing)
+- PnL shows last known value (dimmed, with "—" sub-text "Last known")
+
+### Terminal
+- **Titlebar**: dots unchanged. Tab label dimmed.
+- **Output**: Last messages still visible, frozen, opacity 0.5
+- **New warning line** (top of output, amber):
+  ```
+  ⚠ WebSocket disconnected at 14:32:05 UTC
+  ⚠ Attempting to reconnect...
+  ```
+- **Input line**: `>` prompt grayed out, placeholder text: "reconnecting..." in `--amber`, input disabled
+- **Every 3 seconds**: new amber line appears:
+  ```
+  ⚠ Reconnection attempt 1... failed (will retry in 3s)
+  ⚠ Reconnection attempt 2... failed (will retry in 3s)
+  ⚠ Reconnection attempt 3... failed (will retry in 3s)
+  ```
+
+### Recovery State (when reconnection succeeds)
+This transition state lasts ~2 seconds before reverting to normal dashboard:
+1. Overlay fades out (opacity 0.85 → 0, transition 0.5s)
+2. Topbar: red dot → green dot, "DISCONNECTED" → "LIVE"
+3. Ticker: undimmed, animation resumes
+4. Terminal: new green line "✓ Reconnected at 14:35:12 UTC"
+5. All panels: opacity 0.3 → 1.0
+6. Data refreshes with latest values
+
+### Mobile Tabs
+- All 4 tabs still functional (can switch between frozen panels)
+- But each panel shows 30% opacity frozen content
+- Overlay visible on all tab views
+
+---
+
+## Additional State: Error Banner (Non-blocking)
+
+A less severe variant — a banner at the top of the main area for transient errors that don't require full overlay.
+
+### Banner Design
+- **Position**: below topbar + ticker, above main content
+- **Height**: 36px
+- **Background**: `rgba(196,69,69,0.1)` (very subtle red)
+- **Border-bottom**: 1.5px solid `--red`
+- **Layout**: flex row, items centered, justify-content space-between, padding 0 16px
+
+### Banner Content
+1. **Left**: `⚠` icon 12px + message in `--red-light`, 11px
+   - Text varies by error type:
+     - "Data feed latency: 2.3s (normal: <0.5s)"
+     - "Failed to fetch positions — data may be stale"
+     - "API rate limit reached — retrying in 10s"
+2. **Right**: "Dismiss" button — small text `--red-light`, 9px uppercase, cursor pointer, no border
+
+### When to use banner vs overlay
+- **Banner**: transient errors (API rate limit, slow data, single endpoint failure)
+- **Overlay**: hard disconnect (WebSocket closed, no data for 10+ seconds)
+
+---
+
+## COLOR REFERENCE (copy-paste into your design tool)
+
+Dark mode tokens (same as dashboard):
+```
+--bg-dark: #0a0a0a
+--surface: oklch(100% 0 0)
+--fg-dark: #0f0f0f
+--bg-panel: #111111
+--border-dark: #1a3a1a
+--green-terminal: #33ff33
+--green-dim: #1a8a1a
+--green-light: #A2CB8B
+--red: #C44545
+--red-light: #e86565
+--amber: #d4a017
+--accent: oklch(60% 0.22 25)
+--font-display: 'Times New Roman', 'Iowan Old Style', Georgia, serif
+--font-body: ui-monospace, 'IBM Plex Mono', 'JetBrains Mono', Menlo, monospace
+```
+
+## SKELETON-SPECIFIC TOKENS
+```
+--skeleton-base: #111111
+--skeleton-shimmer-low: rgba(51,255,51,0.03)
+--skeleton-shimmer-high: rgba(51,255,51,0.06)
+--overlay-bg: rgba(10,10,10,0.85)
+--frozen-opacity: 0.3
+```
+
+## TYPOGRAPHY REMINDER
+- Headlines/stat numbers: `--font-display` (serif), normal weight, tight line-height
+- Everything else: `--font-body` (monospace), 10-14px range
+- Labels: 9-10px uppercase, letter-spacing 0.1em-0.18em, `--green-dim`
+- Terminal: 11px monospace, line-height 1.7
+
+## GLOBAL EFFECTS (apply to every page)
+1. Scanline overlay (`body::after`)
+2. `::selection` accent color
+3. No border-radius anywhere
+4. All borders 1.5-2px solid
 
 ---
 
