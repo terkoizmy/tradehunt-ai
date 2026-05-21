@@ -11,7 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
+      - run: cd contracts && forge install OpenZeppelin/openzeppelin-contracts foundry-rs/forge-std --no-commit --no-git
       - run: cd contracts && forge test -vvv
 
   backend:
@@ -45,4 +48,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: cd frontend && npm ci && npm run build
+      - run: cd frontend && npm install && npm run build

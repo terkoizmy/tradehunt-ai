@@ -32,6 +32,16 @@ tradehunt-ai/
 └── .env             # Environment variables (from .env.example)
 ```
 
+## Working on Issues
+Before starting any issue, always read the relevant docs in `docs/` for context and direction. Each package has its own explanation doc:
+- `docs/agents/` — agent engine architecture and tech stack
+- `docs/contracts/` — smart contract specs and deployment
+- `docs/frontend/` — frontend components and design system
+- `docs/api/` — backend API and database schema
+- `docs/architecture/` — full system architecture and data flow
+- `docs/MEMORY.md` — key decisions and project context
+- `docs/WORKFLOW.md` — day-to-day development workflow
+
 ## Dev Workflow
 1. `conda activate tradehunt-ai`
 2. `docker-compose up -d` (start Postgres)
@@ -51,6 +61,6 @@ forge script script/Deploy.s.sol --rpc-url $MANTLE_SEPOLIA_RPC_URL --broadcast
 - Python: type hints everywhere, Pydantic models for data, async where possible
 - Solidity: events over storage, Foundry test patterns
 - Frontend: functional components, custom hooks for WebSocket/contracts
-- Git: feature branches, descriptive commits in English
+- Git: feature branches, descriptive commits in English. Commit every completed feature immediately — do not batch unrelated changes. Each feature/fix gets its own commit with a clear message about what was done and why.
 - All trading on Bybit testnet — no real funds
 - All contracts on Mantle Sepolia testnet — no mainnet
