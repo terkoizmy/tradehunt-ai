@@ -1,6 +1,17 @@
 # Design Brief — Missing Pages & States
 
-Use the same design tokens as `tradinghunter-sandbox-dashboard.html` (dark mode).
+> **Status: COMPLETE** — All 5 pages have been designed. See output files below.
+> This document is kept as the original spec. The exported HTML files are the source of truth.
+
+| Spec | Output File |
+|---|---|
+| Agent Profile | `tradinghunter-agent-profiles.html` |
+| Leaderboard | `tradinghunter-leaderboard-v2.html` |
+| Dashboard — Empty | `tradinghunter-dashboard-empty.html` |
+| Dashboard — Loading | `tradinghunter-dashboard-skeleton.html` |
+| Dashboard — Disconnected | `tradinghunter-dashboard-disconnected.html` |
+
+All files use the same design tokens as `tradinghunter-sandbox-dashboard.html` (dark mode).
 Same fonts, same scanline overlay, same border conventions, same terminal aesthetic.
 
 ---

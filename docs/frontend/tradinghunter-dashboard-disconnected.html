@@ -1,0 +1,640 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TradingHunter — Sandbox</title>
+<style>
+  :root {
+    --fg: oklch(15% 0.02 100);
+    --surface: oklch(100% 0 0);
+    --border: oklch(15% 0.02 100);
+    --accent: oklch(60% 0.22 25);
+    --green: #5B7E3C;
+    --green-light: #A2CB8B;
+    --green-pale: #E8F5BD;
+    --green-terminal: #33ff33;
+    --green-dim: #1a8a1a;
+    --red: #C44545;
+    --red-light: #e86565;
+    --amber: #d4a017;
+    --fg-dark: #0f0f0f;
+    --bg-dark: #0a0a0a;
+    --bg-panel: #111111;
+    --border-dark: #1a3a1a;
+    --overlay-bg: rgba(10,10,10,0.85);
+    --frozen-opacity: 0.3;
+    --font-display: 'Times New Roman', 'Iowan Old Style', Georgia, serif;
+    --font-body: ui-monospace, 'IBM Plex Mono', 'JetBrains Mono', Menlo, monospace;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html{height:100%;overflow:hidden}
+  body{background:var(--bg-dark);color:#c8c8c8;font-family:var(--font-body);font-size:12px;line-height:1.6;height:100%;overflow:hidden;-webkit-overflow-scrolling:touch}
+  ::selection{background:var(--accent);color:var(--surface)}
+  body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.012) 2px,rgba(0,0,0,0.012) 4px);pointer-events:none;z-index:9999}
+
+  .app{display:grid;grid-template-rows:48px 32px 1fr 160px;height:100vh;height:100dvh;width:100vw;overflow:hidden}
+  .main{display:grid;grid-template-columns:280px 1fr 300px;overflow:hidden;min-height:0;position:relative}
+
+  /* ═══ TOPBAR ═══ */
+  .topbar{background:var(--fg-dark);border-bottom:2px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:48px;z-index:100;flex-shrink:0}
+  .topbar-left{display:flex;align-items:center;gap:16px}
+  .topbar-logo{font-size:13px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--surface);display:flex;align-items:center;gap:8px;text-decoration:none;white-space:nowrap}
+  .topbar-logo .prefix{color:var(--green-terminal);font-size:10px;opacity:0.6}
+  .topbar-logo span{color:var(--accent)}
+  .topbar-nav{display:flex;gap:4px}
+  .topbar-nav a{color:var(--green-dim);text-decoration:none;padding:6px 12px;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;border:1px solid transparent;white-space:nowrap}
+  .topbar-nav a:hover,.topbar-nav a.active{color:var(--green-light);border-color:var(--green-dim);background:rgba(51,255,51,0.05)}
+  .topbar-right{display:flex;align-items:center;gap:12px}
+  .topbar-status{display:flex;align-items:center;gap:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.1em}
+
+  /* Status states */
+  .status-live .status-dot{width:6px;height:6px;background:var(--green-terminal);animation:blink-green 1s infinite;flex-shrink:0}
+  .status-live .status-text{color:var(--green-terminal)}
+  .status-disconnected .status-dot{width:6px;height:6px;background:var(--red);animation:blink-red 0.5s infinite;flex-shrink:0}
+  .status-disconnected .status-text{color:var(--red-light)}
+  .status-agent{opacity:0.5;margin-left:8px;letter-spacing:0.05em}
+  @keyframes blink-green{0%,100%{opacity:1}50%{opacity:0.3}}
+  @keyframes blink-red{0%,100%{opacity:1}50%{opacity:0.2}}
+
+  /* ═══ TICKER ═══ */
+  .ticker{background:#080808;border-bottom:1.5px solid var(--border-dark);overflow:hidden;white-space:nowrap;height:32px;display:flex;align-items:center;flex-shrink:0;transition:opacity 0.3s}
+  .ticker.frozen{opacity:0.4}
+  .ticker.frozen .ticker-inner{animation-play-state:paused}
+  .ticker-inner{display:inline-flex;gap:32px;animation:ticker-slide 30s linear infinite;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green-dim)}
+  @keyframes ticker-slide{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .ticker-inner .up{color:var(--green-terminal)}.ticker-inner .down{color:var(--red)}.ticker-inner .sep{color:#333}
+  .offline-badge{font-size:8px;text-transform:uppercase;letter-spacing:0.1em;color:var(--red-light);padding:0 12px;flex-shrink:0;border-right:1px solid var(--border-dark);height:100%;display:flex;align-items:center}
+
+  /* ═══ ERROR BANNER ═══ */
+  .error-banner{background:rgba(196,69,69,0.1);border-bottom:1.5px solid var(--red);height:36px;display:none;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+  .error-banner.visible{display:flex}
+  .error-banner-left{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--red-light)}
+  .error-banner-dismiss{font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--red-light);cursor:pointer;background:none;border:none;font-family:var(--font-body);padding:4px 8px}
+  .error-banner-dismiss:hover{text-decoration:underline}
+
+  /* ═══ MOBILE ═══ */
+  .mobile-tabs{display:none;background:var(--fg-dark);border-bottom:2px solid var(--border-dark);flex-shrink:0;overflow-x:auto}
+  .mobile-tabs::-webkit-scrollbar{display:none}
+  .mobile-tabs-inner{display:flex;min-width:max-content;width:100%;justify-content:space-around}
+  .mobile-tab{padding:10px 16px;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green-dim);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;background:none;font-family:var(--font-body)}
+  .mobile-tab.active{color:var(--green-terminal);border-bottom-color:var(--green-terminal)}
+  .mobile-menu-btn{display:none;background:none;border:1px solid var(--border-dark);color:var(--green-light);width:32px;height:32px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0}
+
+  /* ═══ LEFT PANEL ═══ */
+  .panel-left{background:var(--bg-panel);border-right:2px solid var(--border-dark);overflow-y:auto;display:flex;flex-direction:column;transition:opacity 0.5s}
+  .panel-left.frozen{opacity:var(--frozen-opacity);pointer-events:none}
+  .panel-header{padding:14px 16px;border-bottom:1.5px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .panel-title{font-size:10px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim);display:flex;align-items:center;gap:6px}
+  .panel-title::before{content:'>';color:var(--green-terminal);font-weight:700}
+  .panel-close{background:none;border:1px solid var(--border-dark);color:var(--green-dim);width:24px;height:24px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .agent-select{padding:12px 16px;border-bottom:1.5px solid var(--border-dark)}
+  .agent-select label{font-size:9px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim);display:block;margin-bottom:6px}
+  .agent-select select{width:100%;background:var(--fg-dark);color:var(--green-light);border:1.5px solid var(--border-dark);padding:8px 10px;font-family:var(--font-body);font-size:12px;appearance:none;border-radius:0}
+  .config-section{padding:14px 16px;border-bottom:1.5px solid var(--border-dark)}
+  .config-section-title{font-size:9px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .config-section-title::before{content:'::';color:var(--green-terminal)}
+  .config-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+  .config-label{font-size:11px;color:#888}
+  .config-value{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .config-input{width:64px;background:var(--fg-dark);border:1px solid var(--border-dark);color:var(--green-light);padding:6px 8px;font-family:var(--font-body);font-size:12px;text-align:right;border-radius:0}
+  .config-unit{font-size:9px;color:var(--green-dim);text-transform:uppercase}
+  .config-slider-wrap{width:100%;margin-bottom:10px}
+  .config-slider-wrap:last-child{margin-bottom:0}
+  .config-slider-label{display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:6px}
+  .config-slider-label span:last-child{color:var(--green-terminal);font-variant-numeric:tabular-nums}
+  input[type="range"]{-webkit-appearance:none;width:100%;height:6px;background:var(--border-dark);border-radius:0;outline:none}
+  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--green-terminal);border:none;cursor:pointer;border-radius:0}
+  .strategy-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .strategy-btn{background:var(--fg-dark);border:1.5px solid var(--border-dark);color:var(--green-dim);padding:10px 6px;font-family:var(--font-body);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;text-align:center;cursor:pointer;border-radius:0}
+  .strategy-btn.active{border-color:var(--green-terminal);color:var(--green-terminal);background:rgba(51,255,51,0.06)}
+  .toggle{width:40px;height:24px;background:var(--border-dark);border:1px solid var(--green-dim);cursor:pointer;position:relative;flex-shrink:0;border-radius:0}
+  .toggle.on{background:rgba(51,255,51,0.2)}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;background:var(--green-dim);transition:transform 0.15s;border-radius:0}
+  .toggle.on::after{transform:translateX(16px);background:var(--green-terminal)}
+  .deploy-btn{margin:16px;padding:14px;background:var(--green-terminal);color:var(--fg-dark);border:none;font-family:var(--font-body);font-size:13px;text-transform:uppercase;letter-spacing:0.12em;font-weight:700;cursor:pointer;text-align:center;border-radius:0}
+  .deploy-btn.running{background:var(--red);color:var(--surface)}
+
+  /* ═══ CENTER ═══ */
+  .panel-center{display:flex;flex-direction:column;overflow:hidden;position:relative;background:#080808;min-height:0;transition:opacity 0.5s}
+  .panel-center.frozen{opacity:var(--frozen-opacity);pointer-events:none}
+  .chart-toolbar{padding:10px 16px;border-bottom:1.5px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;background:var(--bg-panel);flex-shrink:0;gap:8px;flex-wrap:wrap}
+  .chart-toolbar-left{display:flex;align-items:center;gap:12px}
+  .chart-pair{font-size:14px;font-weight:700;color:var(--surface);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .chart-pair .quote{color:var(--green-terminal);font-size:16px;margin-left:4px}
+  .chart-change{font-size:11px;padding:2px 8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .chart-change.up{color:var(--green-terminal);border:1px solid var(--green-dim);background:rgba(51,255,51,0.06)}
+  .chart-toolbar-right{display:flex;gap:4px;flex-wrap:wrap}
+  .tf-btn{background:none;border:1px solid var(--border-dark);color:var(--green-dim);padding:4px 8px;font-family:var(--font-body);font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:0.08em;border-radius:0}
+  .tf-btn.active{border-color:var(--green-terminal);color:var(--green-terminal)}
+  .chart-area{flex:1;position:relative;background:#080808;min-height:200px}
+  #chartCanvas{width:100%;height:100%;display:block}
+
+  /* ═══ DISCONNECT OVERLAY ═══ */
+  .disconnect-overlay{position:absolute;inset:0;background:var(--overlay-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;text-align:center;padding:32px;transition:opacity 0.5s}
+  .disconnect-overlay.hidden{opacity:0;pointer-events:none}
+  .warn-icon{font-size:48px;color:var(--amber);margin-bottom:20px;animation:warn-pulse 2s infinite}
+  @keyframes warn-pulse{0%,100%{opacity:0.6}50%{opacity:1}}
+  .warn-heading{font-family:var(--font-display);font-size:clamp(24px,3vw,32px);color:var(--amber);margin-bottom:12px;font-weight:400}
+  .warn-desc{font-family:var(--font-body);font-size:13px;color:#888;max-width:420px;line-height:1.6;margin-bottom:8px}
+  .warn-timestamp{font-family:var(--font-body);font-size:11px;color:var(--green-dim);margin-bottom:28px}
+  .warn-countdown{font-family:var(--font-body);font-size:12px;color:var(--amber);margin-bottom:20px}
+  .btn-reconnect{background:transparent;border:2px solid var(--amber);color:var(--amber);padding:12px 28px;font-family:var(--font-body);font-size:12px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;transition:box-shadow 0.15s,border-color 0.15s;border-radius:0}
+  .btn-reconnect:hover{box-shadow:0 0 16px rgba(212,160,23,0.3);border-color:var(--amber)}
+
+  /* ═══ RIGHT PANEL ═══ */
+  .panel-right{background:var(--bg-panel);border-left:2px solid var(--border-dark);overflow-y:auto;display:flex;flex-direction:column;transition:opacity 0.5s}
+  .panel-right.frozen{opacity:var(--frozen-opacity);pointer-events:none}
+  .right-section{border-bottom:1.5px solid var(--border-dark)}
+  .pnl-section{padding:16px;text-align:center}
+  .pnl-label{font-size:9px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim);margin-bottom:8px}
+  .pnl-value{font-family:var(--font-display);font-size:32px;font-weight:400;color:var(--green-terminal);line-height:1}
+  .pnl-sub{font-size:11px;color:var(--green-dim);margin-top:6px}
+  .pnl-sparkline{height:36px;margin:10px 0 4px}
+  .pnl-sparkline canvas{width:100%;height:100%}
+  .pos-header{padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+  .pos-title{font-size:9px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green-dim)}
+  .pos-count{font-size:10px;color:var(--green-terminal)}
+  .pos-row{display:grid;grid-template-columns:1fr 1fr 1fr;padding:7px 16px;border-top:1px solid rgba(26,58,26,0.5);font-variant-numeric:tabular-nums}
+  .pos-row-header{color:var(--green-dim);font-size:9px;text-transform:uppercase;letter-spacing:0.1em}
+  .pos-pair{font-size:11px;color:var(--surface)}
+  .pos-size{font-size:11px;color:#aaa}
+  .pos-pnl{font-size:11px;text-align:right}
+  .pos-pnl.up{color:var(--green-terminal)}
+  .pos-pnl.down{color:var(--red-light)}
+  .signal-list{padding:8px}
+  .signal-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--border-dark);margin-bottom:4px;font-size:10px}
+  .signal-dot{width:6px;height:6px;flex-shrink:0}
+  .signal-dot.buy{background:var(--green-terminal)}
+  .signal-dot.sell{background:var(--red)}
+  .signal-dot.warn{background:var(--amber)}
+  .signal-time{color:var(--green-dim);min-width:32px;font-size:9px}
+  .signal-text{flex:1;color:#aaa;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .signal-type{font-size:8px;text-transform:uppercase;letter-spacing:0.06em;padding:1px 4px;border:1px solid;flex-shrink:0}
+  .signal-type.buy{color:var(--green-terminal);border-color:var(--green-dim)}
+  .signal-type.sell{color:var(--red-light);border-color:var(--red)}
+  .signal-type.warn{color:var(--amber);border-color:var(--amber)}
+
+  /* ═══ TERMINAL ═══ */
+  .terminal{background:var(--fg-dark);border-top:2px solid var(--border-dark);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+  .terminal-header{padding:6px 12px;border-bottom:1.5px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;background:rgba(20,20,20,0.8);flex-shrink:0}
+  .terminal-header-left{display:flex;align-items:center;gap:10px}
+  .terminal-dots{display:flex;gap:5px}
+  .terminal-dots .dot{width:8px;height:8px;border-radius:50%;border:1.5px solid;flex-shrink:0}
+  .terminal-dots .dot.r{border-color:var(--red);background:var(--red)}
+  .terminal-dots .dot.y{border-color:var(--amber);background:var(--amber)}
+  .terminal-dots .dot.g{border-color:var(--green);background:var(--green)}
+  .terminal-tab{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--green-dim)}
+  .terminal-output{flex:1;overflow-y:auto;padding:6px 12px;font-size:11px;line-height:1.7;color:var(--green-light);min-height:0;transition:opacity 0.3s}
+  .terminal-output.frozen{opacity:0.5}
+  .terminal-output .prompt{color:var(--green-terminal)}
+  .terminal-output .success{color:var(--green-terminal)}
+  .terminal-output .warn{color:var(--amber)}
+  .terminal-output .dim{color:var(--green-dim)}
+  .terminal-output .error{color:var(--red-light)}
+  .terminal-input{display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--border-dark);flex-shrink:0;transition:opacity 0.3s}
+  .terminal-input.disabled{opacity:0.5}
+  .terminal-input .prompt-char{color:var(--green-terminal);margin-right:8px;font-weight:700}
+  .terminal-input input{flex:1;background:none;border:none;color:var(--green-light);font-family:var(--font-body);font-size:12px;outline:none;min-width:0}
+  .terminal-input input::placeholder{color:var(--green-dim)}
+  .terminal-input input.disabled-input{color:var(--amber)}
+  .terminal-input input.disabled-input::placeholder{color:var(--amber)}
+  .terminal-input input.disabled-input:disabled{opacity:1}
+
+  /* ═══ STATE TOGGLE BAR ═══ */
+  .state-bar{position:fixed;bottom:0;left:0;right:0;background:var(--fg-dark);border-top:2px solid var(--border-dark);padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:6px;z-index:500}
+  .state-bar .bar-label{font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green-dim);margin-right:8px}
+  .st-btn{background:none;border:1px solid var(--border-dark);color:var(--green-dim);padding:5px 10px;font-family:var(--font-body);font-size:9px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;transition:all 0.15s}
+  .st-btn:hover,.st-btn.active{border-color:var(--green-terminal);color:var(--green-terminal)}
+
+  /* ═══ RESPONSIVE ═══ */
+  @media(max-width:900px){
+    .app{grid-template-rows:48px 32px 40px 1fr 140px}
+    .mobile-tabs{display:block}
+    .main{grid-template-columns:1fr}
+    .panel-left,.panel-right,.panel-center{display:none}
+    .panel-left.mob-active,.panel-right.mob-active,.panel-center.mob-active{display:flex;flex-direction:column}
+  }
+  @media(max-width:640px){
+    .app{grid-template-rows:48px 28px 40px 1fr 120px}
+    .topbar{padding:0 12px}
+    .topbar-nav{display:none}
+    .mobile-menu-btn{display:flex}
+    .terminal-output{font-size:10px}
+    .warn-heading{font-size:24px}
+    .warn-desc{font-size:12px}
+  }
+  @media(min-width:901px){
+    .panel-left,.panel-right,.panel-center{display:flex !important}
+    .mobile-tabs{display:none !important}
+    .mobile-menu-btn{display:none !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="mobile-menu-btn">☰</button>
+      <a href="#" class="topbar-logo"><span class="prefix">&gt;_</span>Trading<span>Hunter</span></a>
+      <nav class="topbar-nav">
+        <a href="#" class="active">sandbox</a>
+        <a href="#">agents</a>
+        <a href="#">arena</a>
+        <a href="#">evolution</a>
+        <a href="#">docs</a>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-status" id="topbarStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">LIVE</span>
+        <span class="status-agent" id="topbarAgent">AGENT #0047</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- TICKER -->
+  <div class="ticker" id="ticker">
+    <div class="offline-badge" id="offlineBadge" style="display:none">● OFFLINE</div>
+    <div class="ticker-inner">
+      <span><span class="up">▲</span> BTC/USD 67,842</span><span class="sep">│</span>
+      <span><span class="down">▼</span> ETH/USD 3,421</span><span class="sep">│</span>
+      <span><span class="up">▲</span> SOL/USD 142.8</span><span class="sep">│</span>
+      <span><span class="up">▲</span> AVAX 38.24</span><span class="sep">│</span>
+      <span>ARENA #47</span><span class="sep">│</span>
+      <span><span class="up">▲</span> BTC/USD 67,842</span><span class="sep">│</span>
+      <span><span class="down">▼</span> ETH/USD 3,421</span><span class="sep">│</span>
+      <span><span class="up">▲</span> SOL/USD 142.8</span><span class="sep">│</span>
+      <span>ARENA #47</span><span class="sep">│</span>
+    </div>
+  </div>
+
+  <!-- ERROR BANNER -->
+  <div class="error-banner" id="errorBanner">
+    <div class="error-banner-left">
+      <span>⚠</span>
+      <span id="bannerMsg">Data feed latency: 2.3s (normal: &lt;0.5s)</span>
+    </div>
+    <button class="error-banner-dismiss" onclick="hideBanner()">Dismiss</button>
+  </div>
+
+  <!-- MOBILE TABS -->
+  <div class="mobile-tabs">
+    <div class="mobile-tabs-inner">
+      <button class="mobile-tab active" data-panel="chart">📊 chart</button>
+      <button class="mobile-tab" data-panel="config">⚙️ config</button>
+      <button class="mobile-tab" data-panel="positions">📈 positions</button>
+      <button class="mobile-tab" data-panel="signals">📡 signals</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- LEFT PANEL -->
+    <aside class="panel-left" id="panelConfig">
+      <div class="panel-header">
+        <span class="panel-title">agent_config</span>
+        <button class="panel-close">□</button>
+      </div>
+      <div class="agent-select">
+        <label>Select agent</label>
+        <select><option>Agent #0047 — momentum_reversal</option></select>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">strategy</div>
+        <div class="strategy-grid">
+          <button class="strategy-btn active">momentum</button>
+          <button class="strategy-btn">mean_rev</button>
+          <button class="strategy-btn">breakout</button>
+          <button class="strategy-btn">custom</button>
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">parameters</div>
+        <div class="config-slider-wrap">
+          <div class="config-slider-label"><span>EMA Period</span><span>9</span></div>
+          <input type="range" min="5" max="50" value="9">
+        </div>
+        <div class="config-slider-wrap">
+          <div class="config-slider-label"><span>RSI Period</span><span>14</span></div>
+          <input type="range" min="7" max="30" value="14">
+        </div>
+        <div class="config-slider-wrap">
+          <div class="config-slider-label"><span>ATR Mult.</span><span>1.5</span></div>
+          <input type="range" min="10" max="30" value="15">
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">risk management</div>
+        <div class="config-row"><span class="config-label">Max Drawdown</span><div class="config-value"><input type="text" class="config-input" value="8"><span class="config-unit">%</span></div></div>
+        <div class="config-row"><span class="config-label">Position Size</span><div class="config-value"><input type="text" class="config-input" value="2.5"><span class="config-unit">%</span></div></div>
+        <div class="config-row"><span class="config-label">Stop Loss</span><div class="config-value"><input type="text" class="config-input" value="3.2"><span class="config-unit">%</span></div></div>
+        <div class="config-row"><span class="config-label">Take Profit</span><div class="config-value"><input type="text" class="config-input" value="6.8"><span class="config-unit">%</span></div></div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">execution</div>
+        <div class="config-row"><span class="config-label">Paper Trading</span><div class="toggle on"></div></div>
+        <div class="config-row"><span class="config-label">Auto-restart</span><div class="toggle on"></div></div>
+        <div class="config-row"><span class="config-label">Sound Alerts</span><div class="toggle"></div></div>
+      </div>
+      <button class="deploy-btn running" id="deployBtn">■ stop agent</button>
+    </aside>
+
+    <!-- CENTER -->
+    <main class="panel-center" id="panelChart">
+      <div class="chart-toolbar">
+        <div class="chart-toolbar-left">
+          <span class="chart-pair">BTC/USD <span class="quote">67,842.30</span></span>
+          <span class="chart-change up">+2.41%</span>
+        </div>
+        <div class="chart-toolbar-right">
+          <button class="tf-btn">1m</button>
+          <button class="tf-btn active">5m</button>
+          <button class="tf-btn">15m</button>
+          <button class="tf-btn">1H</button>
+          <button class="tf-btn">4H</button>
+          <button class="tf-btn">1D</button>
+        </div>
+      </div>
+      <div class="chart-area">
+        <canvas id="chartCanvas"></canvas>
+      </div>
+
+      <!-- DISCONNECT OVERLAY -->
+      <div class="disconnect-overlay hidden" id="disconnectOverlay">
+        <div class="warn-icon">⚠</div>
+        <div class="warn-heading">Connection lost</div>
+        <div class="warn-desc">The data feed has been interrupted. Your agent is still running but we can't display live updates right now.</div>
+        <div class="warn-timestamp" id="lastUpdate">Last update: 14:32:05 UTC</div>
+        <div class="warn-countdown" id="countdown">Reconnecting in 3...</div>
+        <button class="btn-reconnect" id="reconnectBtn">⟳ Reconnect now</button>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL -->
+    <aside class="panel-right" id="panelPositions">
+      <div class="right-section pnl-section">
+        <div class="pnl-label">unrealized P&L</div>
+        <div class="pnl-value" id="pnlValue">+$1,247</div>
+        <div class="pnl-sub" id="pnlSub">+12.47% on 10,000 USDT</div>
+        <div class="pnl-sparkline"><canvas id="sparkCanvas"></canvas></div>
+      </div>
+      <div class="right-section">
+        <div class="pos-header">
+          <span class="pos-title">open positions</span>
+          <span class="pos-count">3</span>
+        </div>
+        <div class="pos-row pos-row-header"><span>pair</span><span>size</span><span style="text-align:right">P&L</span></div>
+        <div class="pos-row"><span class="pos-pair">BTC/USD</span><span class="pos-size">0.15 BTC</span><span class="pos-pnl up">+$847.20</span></div>
+        <div class="pos-row"><span class="pos-pair">ETH/USD</span><span class="pos-size">2.40 ETH</span><span class="pos-pnl down">−$182.40</span></div>
+        <div class="pos-row"><span class="pos-pair">SOL/USD</span><span class="pos-size">45 SOL</span><span class="pos-pnl up">+$582.30</span></div>
+      </div>
+      <div class="right-section" style="flex:1;overflow-y:auto">
+        <div class="pos-header"><span class="pos-title">recent signals</span><span class="pos-count">8</span></div>
+        <div class="signal-list">
+          <div class="signal-item"><div class="signal-dot buy"></div><span class="signal-time">14:32</span><span class="signal-text">BTC LONG — EMA crossover confirmed</span><span class="signal-type buy">buy</span></div>
+          <div class="signal-item"><div class="signal-dot sell"></div><span class="signal-time">14:28</span><span class="signal-text">SOL take-profit triggered @ +6.8%</span><span class="signal-type sell">sell</span></div>
+          <div class="signal-item"><div class="signal-dot warn"></div><span class="signal-time">14:21</span><span class="signal-text">ATR spike: volatility exceeds 2σ</span><span class="signal-type warn">warn</span></div>
+          <div class="signal-item"><div class="signal-dot buy"></div><span class="signal-time">14:15</span><span class="signal-text">SOL LONG — breakout above resistance</span><span class="signal-type buy">buy</span></div>
+          <div class="signal-item"><div class="signal-dot sell"></div><span class="signal-time">14:08</span><span class="signal-text">ETH stop-loss triggered @ −3.2%</span><span class="signal-type sell">sell</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="terminal">
+    <div class="terminal-header">
+      <div class="terminal-header-left">
+        <div class="terminal-dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+        <span class="terminal-tab">agent_log</span>
+      </div>
+      <span style="font-size:9px;color:var(--green-dim);text-transform:uppercase;letter-spacing:0.1em">session #0047</span>
+    </div>
+    <div class="terminal-output" id="termOutput"></div>
+    <div class="terminal-input" id="termInputWrap">
+      <span class="prompt-char">&gt;</span>
+      <input type="text" placeholder="type a command..." id="termInput" autocomplete="off">
+    </div>
+  </div>
+</div>
+
+<!-- STATE BAR -->
+<div class="state-bar">
+  <span class="bar-label">states:</span>
+  <button class="st-btn" data-st="connected">connected</button>
+  <button class="st-btn active" data-st="disconnected">disconnected</button>
+  <button class="st-btn" data-st="banner">error banner</button>
+</div>
+
+<script>
+/* ═══ CHART ═══ */
+(function(){
+  var c=document.getElementById('chartCanvas'),ctx=c.getContext('2d'),candles=[],COUNT=80,base=67842;
+  function resize(){var d=devicePixelRatio||1;c.width=c.offsetWidth*d;c.height=c.offsetHeight*d;ctx.setTransform(d,0,0,d,0,0)}
+  resize();window.addEventListener('resize',resize);
+  var p=base;for(var i=0;i<COUNT;i++){var ch=(Math.random()-0.48)*300,o=p,cl=p+ch,h=Math.max(o,cl)+Math.random()*150,l=Math.min(o,cl)-Math.random()*150;candles.push({o:o,c:cl,h:h,l:l,v:Math.random()*5000+1000});p=cl}
+  function draw(){var w=c.offsetWidth,h=c.offsetHeight;if(!w||!h)return;var chH=h*0.75,vH=h*0.2,vY=h*0.78,pl=56,mn=Infinity,mx=-Infinity,mxV=0;candles.forEach(function(d){mn=Math.min(mn,d.l);mx=Math.max(mx,d.h);mxV=Math.max(mxV,d.v)});var rng=mx-mn;ctx.fillStyle='#080808';ctx.fillRect(0,0,w,h);ctx.strokeStyle='rgba(26,58,26,0.3)';ctx.lineWidth=0.5;for(var i=0;i<5;i++){var y=20+(chH-40)*(i/4);ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(w-10,y);ctx.stroke();var lb=mx-(rng*i/4);ctx.fillStyle='#1a8a1a';ctx.font='10px ui-monospace,monospace';ctx.textAlign='right';ctx.fillText(lb.toFixed(0),pl-6,y+3)}
+  var cw=Math.max(2,(w-pl-10)/COUNT-3);candles.forEach(function(d,i){var x=pl+(i/(COUNT-1))*(w-pl-10),up=d.c>=d.o,col=up?'#33ff33':'#C44545',bt=20+(chH-40)*(1-(Math.max(d.o,d.c)-mn)/rng),bb=20+(chH-40)*(1-(Math.min(d.o,d.c)-mn)/rng),wt=20+(chH-40)*(1-(d.h-mn)/rng),wb=20+(chH-40)*(1-(d.l-mn)/rng);ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,wt);ctx.lineTo(x,wb);ctx.stroke();ctx.fillStyle=col;ctx.fillRect(x-cw/2,bt,cw,Math.max(1,bb-bt));var vh2=(d.v/mxV)*vH*0.6;ctx.fillStyle=up?'rgba(51,255,51,0.15)':'rgba(196,69,69,0.15)';ctx.fillRect(x-cw/2,vY+vH-vh2,cw,vh2)})}
+  draw();window.addEventListener('resize',function(){resize();draw()})
+})();
+
+/* ═══ SPARKLINE ═══ */
+(function(){var c=document.getElementById('sparkCanvas'),ctx=c.getContext('2d'),data=[];var eq=10000;for(var i=0;i<40;i++){eq+=(Math.random()-0.44)*140;eq=Math.max(9000,eq);data.push(eq)}data[data.length-1]=11247;
+function draw(){var d=devicePixelRatio||1;c.width=c.offsetWidth*d;c.height=c.offsetHeight*d;ctx.setTransform(d,0,0,d,0,0);var w=c.offsetWidth,h=c.offsetHeight;if(!w)return;var mn=Math.min.apply(null,data)-200,mx=Math.max.apply(null,data)+200,rng=mx-mn;ctx.clearRect(0,0,w,h);ctx.beginPath();ctx.moveTo(0,h);data.forEach(function(v,i){var x=(i/(data.length-1))*w,y=h-((v-mn)/rng)*h*0.8-h*0.1;ctx.lineTo(x,y)});ctx.lineTo(w,h);ctx.closePath();ctx.fillStyle='rgba(51,255,51,0.08)';ctx.fill();ctx.beginPath();data.forEach(function(v,i){var x=(i/(data.length-1))*w,y=h-((v-mn)/rng)*h*0.8-h*0.1;if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.strokeStyle='#33ff33';ctx.lineWidth=1.5;ctx.stroke()}draw();window.addEventListener('resize',draw)})();
+
+/* ═══ TERMINAL ═══ */
+var termOutput=document.getElementById('termOutput');
+function addLine(cls,txt){var d=document.createElement('div');d.innerHTML='<span class="'+cls+'">'+txt+'</span>';termOutput.appendChild(d);termOutput.scrollTop=termOutput.scrollHeight}
+
+// Initial connected terminal state
+addLine('dim','TradingHunter v0.4.1 — AI Agent Trading Sandbox');
+addLine('dim','━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+addLine('success','✓ System initialized');
+addLine('success','✓ Arena #47 connected');
+addLine('dim','  Paper trading: ON | Capital: 10,000 USDT');
+addLine('success','✓ Agent #0047 deployed: momentum_reversal v3.2.1');
+addLine('success','✓ BTC/USD LONG signal: EMA crossover confirmed');
+addLine('dim','  Order filled: BUY 0.15 BTC @ 67,842.30');
+addLine('success','✓ SOL/USD breakout confirmed: volume +180%');
+addLine('dim','  Order filled: BUY 45 SOL @ 142.80');
+addLine('success','✓ P&L update: +$1,247 (+12.47%)');
+
+/* ═══ STATE MANAGEMENT ═══ */
+var currentState = 'disconnected';
+var countdownVal = 3;
+var countdownInterval = null;
+var retryInterval = null;
+var retryCount = 0;
+
+function getTimestamp(){
+  var d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')+' UTC';
+}
+
+function enterDisconnected(){
+  currentState = 'disconnected';
+  var ts = getTimestamp();
+
+  // Topbar
+  var status = document.getElementById('topbarStatus');
+  status.className = 'topbar-status status-disconnected';
+  status.innerHTML = '<span class="status-dot"></span><span class="status-text">DISCONNECTED</span><span class="status-agent" style="opacity:0.5">AGENT #0047</span>';
+
+  // Ticker frozen
+  var ticker = document.getElementById('ticker');
+  ticker.classList.add('frozen');
+  document.getElementById('offlineBadge').style.display = 'flex';
+
+  // Panels frozen
+  document.getElementById('panelConfig').classList.add('frozen');
+  document.getElementById('panelChart').classList.add('frozen');
+  document.getElementById('panelPositions').classList.add('frozen');
+
+  // Show overlay
+  document.getElementById('disconnectOverlay').classList.remove('hidden');
+  document.getElementById('lastUpdate').textContent = 'Last update: ' + ts;
+
+  // Terminal
+  document.getElementById('termOutput').classList.add('frozen');
+  var termWrap = document.getElementById('termInputWrap');
+  termWrap.classList.add('disabled');
+  var termIn = document.getElementById('termInput');
+  termIn.classList.add('disabled-input');
+  termIn.disabled = true;
+  termIn.placeholder = 'reconnecting...';
+
+  // Add terminal warnings
+  addLine('warn','⚠ WebSocket disconnected at ' + ts);
+  addLine('warn','⚠ Attempting to reconnect...');
+
+  // Countdown
+  countdownVal = 3;
+  updateCountdown();
+  countdownInterval = setInterval(function(){
+    countdownVal--;
+    if(countdownVal <= 0){
+      document.getElementById('countdown').textContent = 'Reconnecting...';
+      // Try reconnect
+      retryCount++;
+      addLine('warn','⚠ Reconnection attempt ' + retryCount + '... failed (will retry in 3s)');
+      setTimeout(function(){
+        countdownVal = 3;
+        updateCountdown();
+      }, 2000);
+    } else {
+      updateCountdown();
+    }
+  }, 1000);
+
+  // Also do terminal retries every 3s
+  retryInterval = setInterval(function(){
+    retryCount++;
+    addLine('warn','⚠ Reconnection attempt ' + retryCount + '... failed (will retry in 3s)');
+  }, 3000);
+}
+
+function updateCountdown(){
+  document.getElementById('countdown').textContent = 'Reconnecting in ' + countdownVal + '...';
+}
+
+function enterConnected(){
+  currentState = 'connected';
+
+  // Topbar
+  var status = document.getElementById('topbarStatus');
+  status.className = 'topbar-status status-live';
+  status.innerHTML = '<span class="status-dot"></span><span class="status-text">LIVE</span><span class="status-agent" id="topbarAgent">AGENT #0047</span>';
+
+  // Ticker
+  var ticker = document.getElementById('ticker');
+  ticker.classList.remove('frozen');
+  document.getElementById('offlineBadge').style.display = 'none';
+
+  // Panels
+  document.getElementById('panelConfig').classList.remove('frozen');
+  document.getElementById('panelChart').classList.remove('frozen');
+  document.getElementById('panelPositions').classList.remove('frozen');
+
+  // Overlay
+  document.getElementById('disconnectOverlay').classList.add('hidden');
+
+  // Terminal
+  document.getElementById('termOutput').classList.remove('frozen');
+  var termWrap = document.getElementById('termInputWrap');
+  termWrap.classList.remove('disabled');
+  var termIn = document.getElementById('termInput');
+  termIn.classList.remove('disabled-input');
+  termIn.disabled = false;
+  termIn.placeholder = 'type a command...';
+
+  // Clear intervals
+  if(countdownInterval){clearInterval(countdownInterval);countdownInterval=null;}
+  if(retryInterval){clearInterval(retryInterval);retryInterval=null;}
+  retryCount = 0;
+
+  // Add reconnected line
+  addLine('success','✓ Reconnected at ' + getTimestamp());
+}
+
+function showBanner(msg){
+  document.getElementById('bannerMsg').textContent = msg;
+  document.getElementById('errorBanner').classList.add('visible');
+}
+
+function hideBanner(){
+  document.getElementById('errorBanner').classList.remove('visible');
+}
+
+function switchState(st){
+  document.querySelectorAll('.st-btn').forEach(function(b){b.classList.toggle('active',b.dataset.st===st)});
+  if(st==='connected'){
+    enterConnected();
+  } else if(st==='disconnected'){
+    enterDisconnected();
+  } else if(st==='banner'){
+    enterConnected();
+    showBanner('Data feed latency: 2.3s (normal: <0.5s)');
+  }
+}
+
+document.querySelectorAll('.st-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){switchState(btn.dataset.st)});
+});
+
+document.getElementById('reconnectBtn').addEventListener('click',function(){
+  document.getElementById('countdown').textContent = 'Reconnecting...';
+  addLine('warn','⚠ Manual reconnect triggered...');
+  setTimeout(function(){enterConnected()},1500);
+});
+
+/* ═══ MOBILE ═══ */
+(function(){
+  var tabs=document.querySelectorAll('.mobile-tab');
+  var config=document.getElementById('panelConfig');
+  var chart=document.getElementById('panelChart');
+  var pos=document.getElementById('panelPositions');
+  tabs.forEach(function(t){
+    t.addEventListener('click',function(){
+      tabs.forEach(function(b){b.classList.remove('active')});
+      t.classList.add('active');
+      var p=t.dataset.panel;
+      config.classList.remove('mob-active');
+      chart.classList.remove('mob-active');
+      pos.classList.remove('mob-active');
+      if(p==='chart')chart.classList.add('mob-active');
+      else if(p==='config')config.classList.add('mob-active');
+      else pos.classList.add('mob-active');
+    });
+  });
+})();
+
+/* ═══ INIT ═══ */
+enterDisconnected();
+</script>
+</body>
+</html>

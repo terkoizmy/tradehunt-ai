@@ -1,16 +1,26 @@
 {
   "schema": "open-design.design-manifest.v1",
   "title": "9da92872-1e2f-4b52-9da8-58075252cc55",
-  "entryFile": "tradinghunter-docs.html",
+  "entryFile": "tradinghunter-agent-profiles.html",
   "sourceFiles": {
     "all": [
+      "tradinghunter-agent-profiles.html",
+      "tradinghunter-dashboard-disconnected.html",
+      "tradinghunter-dashboard-empty.html",
+      "tradinghunter-dashboard-skeleton.html",
       "tradinghunter-docs.html",
       "tradinghunter-landingpage.html",
+      "tradinghunter-leaderboard-v2.html",
       "tradinghunter-sandbox-dashboard.html"
     ],
     "html": [
+      "tradinghunter-agent-profiles.html",
+      "tradinghunter-dashboard-disconnected.html",
+      "tradinghunter-dashboard-empty.html",
+      "tradinghunter-dashboard-skeleton.html",
       "tradinghunter-docs.html",
       "tradinghunter-landingpage.html",
+      "tradinghunter-leaderboard-v2.html",
       "tradinghunter-sandbox-dashboard.html"
     ],
     "css": [],
@@ -19,6 +29,26 @@
   },
   "screens": [
     {
+      "file": "tradinghunter-agent-profiles.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "tradinghunter-dashboard-disconnected.html",
+      "role": "product-screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "tradinghunter-dashboard-empty.html",
+      "role": "product-screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "tradinghunter-dashboard-skeleton.html",
+      "role": "product-screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
       "file": "tradinghunter-docs.html",
       "role": "screen",
       "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
@@ -26,6 +56,11 @@
     {
       "file": "tradinghunter-landingpage.html",
       "role": "landing-page",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "tradinghunter-leaderboard-v2.html",
+      "role": "screen",
       "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
     },
     {
@@ -65,7 +100,7 @@
   },
   "tokens": {
     "source": [
-      "tradinghunter-docs.html"
+      "tradinghunter-agent-profiles.html"
     ],
     "required": [
       "background",
@@ -84,7 +119,7 @@
   },
   "interactions": {
     "source": [
-      "tradinghunter-docs.html"
+      "tradinghunter-agent-profiles.html"
     ],
     "requiredStates": [
       "default",

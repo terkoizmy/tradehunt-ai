@@ -1,0 +1,515 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TradingHunter — Sandbox</title>
+<style>
+  :root {
+    --fg: oklch(15% 0.02 100);
+    --surface: oklch(100% 0 0);
+    --border: oklch(15% 0.02 100);
+    --accent: oklch(60% 0.22 25);
+    --green: #5B7E3C;
+    --green-light: #A2CB8B;
+    --green-terminal: #33ff33;
+    --green-dim: #1a8a1a;
+    --red: #C44545;
+    --amber: #d4a017;
+    --fg-dark: #0f0f0f;
+    --bg-dark: #0a0a0a;
+    --bg-panel: #111111;
+    --border-dark: #1a3a1a;
+    --font-display: 'Times New Roman', 'Iowan Old Style', Georgia, serif;
+    --font-body: ui-monospace, 'IBM Plex Mono', 'JetBrains Mono', Menlo, monospace;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html{height:100%;overflow:hidden}
+  body{background:var(--bg-dark);color:#c8c8c8;font-family:var(--font-body);font-size:12px;line-height:1.6;height:100%;overflow:hidden}
+  ::selection{background:var(--accent);color:var(--surface)}
+
+  /* ═══ APP ═══ */
+  .app{display:grid;grid-template-rows:48px 32px 1fr 160px;height:100vh;height:100dvh;width:100vw;overflow:hidden}
+  .main{display:grid;grid-template-columns:280px 1fr 300px;overflow:hidden;min-height:0}
+
+  /* ═══ SKELETON CORE ═══ */
+  .sk{border-radius:0;border:none;display:block}
+  .sk-pulse{animation:sk-p 1.5s ease-in-out infinite}
+  @keyframes sk-p{0%,100%{opacity:0.4}50%{opacity:0.8}}
+  .sk-green{background:rgba(51,255,51,0.04)}
+  .sk-panel{background:var(--bg-panel)}
+  .sk-chart{background:rgba(51,255,51,0.03)}
+  .sk-green-bright{background:rgba(51,255,51,0.06)}
+  .sk-dim{background:rgba(26,58,26,0.12)}
+  .sk-text{background:var(--bg-panel);height:10px}
+  .sk-deploy{background:rgba(51,255,51,0.08)}
+
+  /* ═══ TOPBAR ═══ */
+  .topbar{background:var(--fg-dark);border-bottom:2px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:48px;z-index:100;flex-shrink:0}
+  .topbar-left{display:flex;align-items:center;gap:16px}
+  .topbar-logo{font-size:13px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--surface);display:flex;align-items:center;gap:8px;text-decoration:none;white-space:nowrap}
+  .topbar-logo .prefix{color:var(--green-terminal);font-size:10px;opacity:0.6}
+  .topbar-logo span{color:var(--accent)}
+  .topbar-nav{display:flex;gap:4px}
+  .topbar-nav a{color:var(--green-dim);text-decoration:none;padding:6px 12px;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;border:1px solid transparent;transition:all 0.15s;white-space:nowrap}
+  .topbar-nav a:hover,.topbar-nav a.active{color:var(--green-light);border-color:var(--green-dim);background:rgba(51,255,51,0.05)}
+  .topbar-right{display:flex;align-items:center;gap:12px}
+  .topbar-status{display:flex;align-items:center;gap:8px;font-size:10px;text-transform:uppercase;letter-spacing:0.1em}
+  .loading-dot{width:6px;height:6px;background:var(--green-dim);flex-shrink:0}
+  .loading-text{color:var(--green-dim);display:flex;align-items:center;gap:2px}
+  .loading-text .dot-anim{animation:sk-dot 1.4s infinite;opacity:0}
+  .loading-text .dot-anim:nth-child(2){animation-delay:0.3s}
+  .loading-text .dot-anim:nth-child(3){animation-delay:0.6s}
+  @keyframes sk-dot{0%,100%{opacity:0}50%{opacity:1}}
+
+  /* ═══ TICKER ═══ */
+  .ticker{background:#080808;border-bottom:1.5px solid var(--border-dark);overflow:hidden;white-space:nowrap;height:32px;display:flex;align-items:center;flex-shrink:0}
+  .ticker-inner{display:inline-flex;gap:32px;animation:ticker-slide 30s linear infinite;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green-dim)}
+  @keyframes ticker-slide{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .ticker-inner .up{color:var(--green-terminal)}.ticker-inner .down{color:var(--red)}.ticker-inner .sep{color:#333}
+
+  /* ═══ LEFT PANEL ═══ */
+  .panel-left{background:var(--bg-panel);border-right:2px solid var(--border-dark);overflow-y:auto;display:flex;flex-direction:column}
+  .panel-left::-webkit-scrollbar{width:4px}
+  .panel-left::-webkit-scrollbar-thumb{background:var(--border-dark)}
+  .sk-section{padding:14px 16px;border-bottom:1.5px solid var(--border-dark)}
+  .sk-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .sk-row:last-child{margin-bottom:0}
+  .sk-strategy-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .sk-strategy-item{height:36px}
+  .sk-slider-wrap{margin-bottom:10px}
+  .sk-slider-wrap:last-child{margin-bottom:0}
+  .sk-slider-label{display:flex;justify-content:space-between;margin-bottom:6px}
+  .sk-slider-track{height:24px}
+  .sk-deploy-area{padding:16px}
+
+  /* ═══ CENTER ═══ */
+  .panel-center{display:flex;flex-direction:column;overflow:hidden;position:relative;background:#080808;min-height:0}
+  .chart-toolbar{padding:10px 16px;border-bottom:1.5px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;background:var(--bg-panel);flex-shrink:0}
+  .chart-toolbar-left{display:flex;align-items:center;gap:12px}
+  .chart-toolbar-right{display:flex;gap:4px}
+  .chart-area{flex:1;position:relative;background:#080808;overflow:hidden}
+  .sk-grid-line{position:absolute;left:56px;right:10px;height:1px;background:rgba(26,58,26,0.15)}
+  .sk-candle{position:absolute;width:6px;bottom:40px}
+  .sk-candle.green{background:rgba(51,255,51,0.08)}
+  .sk-candle.red{background:rgba(196,69,69,0.08)}
+  .sk-ema-line{position:absolute;left:56px;right:10px;height:1px;background:rgba(162,203,139,0.1)}
+  .sk-y-label{position:absolute;left:6px;width:36px;height:8px}
+  .chart-overlay{position:absolute;top:12px;left:12px;pointer-events:none}
+  .sk-overlay-row{margin-bottom:14px}
+
+  /* ═══ RIGHT PANEL ═══ */
+  .panel-right{background:var(--bg-panel);border-left:2px solid var(--border-dark);overflow-y:auto;display:flex;flex-direction:column}
+  .panel-right::-webkit-scrollbar{width:4px}
+  .panel-right::-webkit-scrollbar-thumb{background:var(--border-dark)}
+  .right-section{border-bottom:1.5px solid var(--border-dark)}
+  .sk-pnl-section{padding:16px;text-align:center}
+  .sk-pnl-label{margin:0 auto 8px}
+  .sk-pnl-value{margin:0 auto 6px}
+  .sk-pnl-sub{margin:0 auto}
+  .sk-sparkline{height:36px;margin:10px 0 4px}
+  .sk-pos-header{padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+  .sk-pos-cols{display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 16px 8px;gap:8px}
+  .sk-pos-row{display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 16px;border-top:1px solid rgba(26,58,26,0.4);gap:8px}
+  .sk-sig-header{padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+  .sk-sig-item{display:flex;align-items:center;gap:6px;padding:8px 8px;border:1px solid var(--border-dark);margin:0 8px 4px}
+
+  /* ═══ TERMINAL ═══ */
+  .terminal{background:var(--fg-dark);border-top:2px solid var(--border-dark);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+  .terminal-header{padding:6px 12px;border-bottom:1.5px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;background:rgba(20,20,20,0.8);flex-shrink:0}
+  .terminal-header-left{display:flex;align-items:center;gap:10px}
+  .terminal-dots{display:flex;gap:5px}
+  .terminal-dots .dot{width:8px;height:8px;border-radius:50%;border:1.5px solid;flex-shrink:0}
+  .terminal-dots .dot.r{border-color:var(--red);background:var(--red)}
+  .terminal-dots .dot.y{border-color:var(--amber);background:var(--amber)}
+  .terminal-dots .dot.g{border-color:var(--green);background:var(--green)}
+  .terminal-output{flex:1;overflow-y:auto;padding:6px 12px;min-height:0}
+  .sk-term-line{margin-bottom:6px;height:10px}
+  .sk-term-line:first-child{background:rgba(51,255,51,0.06)}
+  .terminal-input{display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--border-dark);flex-shrink:0}
+  .terminal-input .prompt-char{color:var(--green-terminal);margin-right:8px;font-weight:700;font-size:12px}
+  .sk-term-input{height:10px;flex:1;max-width:200px}
+
+  /* ═══ MOBILE ═══ */
+  .mobile-tabs{display:none;background:var(--fg-dark);border-bottom:2px solid var(--border-dark);flex-shrink:0;overflow-x:auto}
+  .mobile-tabs::-webkit-scrollbar{display:none}
+  .mobile-tabs-inner{display:flex;min-width:max-content;width:100%;justify-content:space-around}
+  .mobile-tab{padding:10px 16px;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green-dim);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--font-body)}
+  .mobile-tab.active{color:var(--green-terminal);border-bottom-color:var(--green-terminal)}
+  .mobile-menu-btn{display:none;background:none;border:1px solid var(--border-dark);color:var(--green-light);width:32px;height:32px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0}
+
+  /* ═══ RESPONSIVE ═══ */
+  @media(max-width:900px){
+    .app{grid-template-rows:48px 32px 40px 1fr 140px}
+    .mobile-tabs{display:block}
+    .main{grid-template-columns:1fr}
+    .panel-left,.panel-right{display:none}
+    .panel-left.mob-active,.panel-right.mob-active{display:flex;flex-direction:column}
+    .panel-center.mob-active{display:flex !important}
+  }
+  @media(max-width:640px){
+    .app{grid-template-rows:48px 28px 40px 1fr 120px}
+    .topbar{padding:0 12px}
+    .topbar-nav{display:none}
+    .mobile-menu-btn{display:flex}
+  }
+  @media(min-width:901px){
+    .panel-left,.panel-right,.panel-center{display:flex !important}
+    .mobile-tabs{display:none !important}
+    .mobile-menu-btn{display:none !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="mobile-menu-btn">☰</button>
+      <a href="#" class="topbar-logo"><span class="prefix">&gt;_</span>Trading<span>Hunter</span></a>
+      <nav class="topbar-nav">
+        <a href="#" class="active">sandbox</a>
+        <a href="#">agents</a>
+        <a href="#">arena</a>
+        <a href="#">evolution</a>
+        <a href="#">docs</a>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-status">
+        <span class="loading-dot"></span>
+        <span class="loading-text">loading<span class="dot-anim">.</span><span class="dot-anim">.</span><span class="dot-anim">.</span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- TICKER -->
+  <div class="ticker">
+    <div class="ticker-inner">
+      <span><span class="up">▲</span> BTC/USD 67,842</span><span class="sep">│</span>
+      <span><span class="down">▼</span> ETH/USD 3,421</span><span class="sep">│</span>
+      <span><span class="up">▲</span> SOL/USD 142.8</span><span class="sep">│</span>
+      <span><span class="up">▲</span> AVAX 38.24</span><span class="sep">│</span>
+      <span>ARENA #47</span><span class="sep">│</span>
+      <span><span class="up">▲</span> BTC/USD 67,842</span><span class="sep">│</span>
+      <span><span class="down">▼</span> ETH/USD 3,421</span><span class="sep">│</span>
+      <span><span class="up">▲</span> SOL/USD 142.8</span><span class="sep">│</span>
+      <span>ARENA #47</span><span class="sep">│</span>
+    </div>
+  </div>
+
+  <!-- MOBILE TABS -->
+  <div class="mobile-tabs">
+    <div class="mobile-tabs-inner">
+      <button class="mobile-tab active" data-panel="chart">📊 chart</button>
+      <button class="mobile-tab" data-panel="config">⚙️ config</button>
+      <button class="mobile-tab" data-panel="positions">📈 positions</button>
+      <button class="mobile-tab" data-panel="signals">📡 signals</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ═══ LEFT PANEL SKELETON ═══ -->
+    <aside class="panel-left" id="panelConfig">
+      <!-- Panel header -->
+      <div style="padding:14px 16px;border-bottom:1.5px solid var(--border-dark);display:flex;justify-content:space-between;align-items:center">
+        <div class="sk sk-pulse sk-panel" style="width:80px;height:12px"></div>
+        <div class="sk sk-pulse sk-panel" style="width:24px;height:24px"></div>
+      </div>
+
+      <!-- Agent select -->
+      <div class="sk-section">
+        <div class="sk sk-pulse sk-text sk-panel" style="width:60px;margin-bottom:6px"></div>
+        <div class="sk sk-pulse sk-panel" style="width:100%;height:36px"></div>
+      </div>
+
+      <!-- Strategy -->
+      <div class="sk-section">
+        <div class="sk sk-pulse sk-text sk-panel" style="width:60px;margin-bottom:10px"></div>
+        <div class="sk-strategy-grid">
+          <div class="sk sk-pulse sk-green sk-strategy-item"></div>
+          <div class="sk sk-pulse sk-panel sk-strategy-item"></div>
+          <div class="sk sk-pulse sk-panel sk-strategy-item"></div>
+          <div class="sk sk-pulse sk-panel sk-strategy-item"></div>
+        </div>
+      </div>
+
+      <!-- Parameters -->
+      <div class="sk-section">
+        <div class="sk sk-pulse sk-text sk-panel" style="width:60px;margin-bottom:10px"></div>
+        <div class="sk-slider-wrap">
+          <div class="sk-slider-label">
+            <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+            <div class="sk sk-pulse sk-text sk-green" style="width:16px;height:10px"></div>
+          </div>
+          <div class="sk sk-pulse sk-chart sk-slider-track"></div>
+        </div>
+        <div class="sk-slider-wrap">
+          <div class="sk-slider-label">
+            <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+            <div class="sk sk-pulse sk-text sk-green" style="width:16px;height:10px"></div>
+          </div>
+          <div class="sk sk-pulse sk-chart sk-slider-track"></div>
+        </div>
+        <div class="sk-slider-wrap">
+          <div class="sk-slider-label">
+            <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+            <div class="sk sk-pulse sk-text sk-green" style="width:24px;height:10px"></div>
+          </div>
+          <div class="sk sk-pulse sk-chart sk-slider-track"></div>
+        </div>
+      </div>
+
+      <!-- Risk -->
+      <div class="sk-section">
+        <div class="sk sk-pulse sk-text sk-panel" style="width:70px;margin-bottom:10px"></div>
+        <div class="sk-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div class="sk sk-pulse sk-panel" style="width:64px;height:28px"></div>
+            <div class="sk sk-pulse sk-text sk-panel" style="width:12px;height:8px"></div>
+          </div>
+        </div>
+        <div class="sk-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div class="sk sk-pulse sk-panel" style="width:64px;height:28px"></div>
+            <div class="sk sk-pulse sk-text sk-panel" style="width:12px;height:8px"></div>
+          </div>
+        </div>
+        <div class="sk-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:60px;height:10px"></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div class="sk sk-pulse sk-panel" style="width:64px;height:28px"></div>
+            <div class="sk sk-pulse sk-text sk-panel" style="width:12px;height:8px"></div>
+          </div>
+        </div>
+        <div class="sk-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:70px;height:10px"></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div class="sk sk-pulse sk-panel" style="width:64px;height:28px"></div>
+            <div class="sk sk-pulse sk-text sk-panel" style="width:12px;height:8px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution -->
+      <div class="sk-section">
+        <div class="sk sk-pulse sk-text sk-panel" style="width:60px;margin-bottom:10px"></div>
+        <div class="sk-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:40px;height:24px"></div>
+        </div>
+        <div class="sk-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:40px;height:24px"></div>
+        </div>
+        <div class="sk-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:40px;height:24px"></div>
+        </div>
+      </div>
+
+      <!-- Deploy button -->
+      <div class="sk-deploy-area">
+        <div class="sk sk-pulse sk-deploy" style="width:100%;height:48px"></div>
+      </div>
+    </aside>
+
+    <!-- ═══ CENTER — CHART SKELETON ═══ -->
+    <main class="panel-center mob-active" id="panelChart">
+      <!-- Toolbar -->
+      <div class="chart-toolbar">
+        <div class="chart-toolbar-left">
+          <div class="sk sk-pulse sk-panel" style="width:120px;height:18px"></div>
+          <div class="sk sk-pulse sk-green" style="width:60px;height:18px"></div>
+        </div>
+        <div class="chart-toolbar-right">
+          <div class="sk sk-pulse sk-panel" style="width:32px;height:24px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:32px;height:24px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:32px;height:24px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:32px;height:24px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:32px;height:24px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:32px;height:24px"></div>
+        </div>
+      </div>
+
+      <!-- Chart area -->
+      <div class="chart-area">
+        <!-- Grid lines -->
+        <div class="sk-grid-line" style="top:12%"></div>
+        <div class="sk-grid-line" style="top:30%"></div>
+        <div class="sk-grid-line" style="top:50%"></div>
+        <div class="sk-grid-line" style="top:70%"></div>
+        <div class="sk-grid-line" style="top:88%"></div>
+
+        <!-- Y-axis labels -->
+        <div class="sk sk-pulse sk-text sk-panel sk-y-label" style="top:10%"></div>
+        <div class="sk sk-pulse sk-text sk-panel sk-y-label" style="top:28%"></div>
+        <div class="sk sk-pulse sk-text sk-panel sk-y-label" style="top:48%"></div>
+        <div class="sk sk-pulse sk-text sk-panel sk-y-label" style="top:68%"></div>
+        <div class="sk sk-pulse sk-text sk-panel sk-y-label" style="top:86%"></div>
+
+        <!-- EMA line -->
+        <div class="sk-ema-line" style="top:35%"></div>
+
+        <!-- Candlesticks -->
+        <div class="sk sk-pulse sk-candle green" style="left:15%;height:50%"></div>
+        <div class="sk sk-pulse sk-candle red" style="left:25%;height:40%"></div>
+        <div class="sk sk-pulse sk-candle green" style="left:35%;height:65%"></div>
+        <div class="sk sk-pulse sk-candle green" style="left:45%;height:55%"></div>
+        <div class="sk sk-pulse sk-candle red" style="left:55%;height:35%"></div>
+        <div class="sk sk-pulse sk-candle green" style="left:65%;height:70%"></div>
+        <div class="sk sk-pulse sk-candle green" style="left:75%;height:60%"></div>
+        <div class="sk sk-pulse sk-candle red" style="left:85%;height:45%"></div>
+        <div class="sk sk-pulse sk-candle green" style="left:92%;height:58%"></div>
+
+        <!-- Overlay -->
+        <div class="chart-overlay">
+          <div class="sk-overlay-row"><div class="sk sk-pulse sk-text sk-panel" style="width:100px;height:10px"></div></div>
+          <div class="sk-overlay-row"><div class="sk sk-pulse sk-text sk-panel" style="width:90px;height:10px"></div></div>
+          <div class="sk-overlay-row"><div class="sk sk-pulse sk-text sk-panel" style="width:95px;height:10px"></div></div>
+          <div class="sk-overlay-row"><div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:10px"></div></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ═══ RIGHT PANEL SKELETON ═══ -->
+    <aside class="panel-right" id="panelPositions">
+      <!-- PnL -->
+      <div class="right-section sk-pnl-section">
+        <div class="sk-pnl-label"><div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:9px;margin:0 auto"></div></div>
+        <div class="sk-pnl-value"><div class="sk sk-pulse sk-panel" style="width:140px;height:32px;margin:0 auto"></div></div>
+        <div class="sk-pnl-sub"><div class="sk sk-pulse sk-text sk-panel" style="width:100px;height:11px;margin:0 auto"></div></div>
+        <div class="sk-sparkline"><div class="sk sk-pulse sk-chart" style="width:100%;height:36px"></div></div>
+      </div>
+
+      <!-- Positions -->
+      <div class="right-section">
+        <div class="sk-pos-header">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:80px;height:9px"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:20px;height:10px"></div>
+        </div>
+        <div class="sk-pos-cols">
+          <div class="sk sk-pulse sk-text sk-dim" style="width:60px;height:8px"></div>
+          <div class="sk sk-pulse sk-text sk-dim" style="width:60px;height:8px"></div>
+          <div class="sk sk-pulse sk-text sk-dim" style="width:60px;height:8px"></div>
+        </div>
+        <div class="sk-pos-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:55px;height:10px"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:50px;height:10px"></div>
+          <div class="sk sk-pulse sk-text sk-green" style="width:60px;height:10px"></div>
+        </div>
+        <div class="sk-pos-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:50px;height:10px"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:55px;height:10px"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:48px;height:10px"></div>
+        </div>
+        <div class="sk-pos-row">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:48px;height:10px"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:45px;height:10px"></div>
+          <div class="sk sk-pulse sk-text sk-green" style="width:55px;height:10px"></div>
+        </div>
+      </div>
+
+      <!-- Signals -->
+      <div class="right-section" style="flex:1">
+        <div class="sk-sig-header">
+          <div class="sk sk-pulse sk-text sk-panel" style="width:70px;height:9px"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:20px;height:10px"></div>
+        </div>
+        <div class="sk-sig-item">
+          <div class="sk sk-pulse sk-green" style="width:6px;height:6px;flex-shrink:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:32px;height:9px;flex-shrink:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="flex:1;height:9px;min-width:60px"></div>
+          <div class="sk sk-pulse sk-green" style="width:40px;height:16px;flex-shrink:0"></div>
+        </div>
+        <div class="sk-sig-item">
+          <div class="sk sk-pulse sk-panel" style="width:6px;height:6px;flex-shrink:0;border-radius:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:32px;height:9px;flex-shrink:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="flex:1;height:9px;min-width:60px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:40px;height:16px;flex-shrink:0"></div>
+        </div>
+        <div class="sk-sig-item">
+          <div class="sk sk-pulse sk-panel" style="width:6px;height:6px;flex-shrink:0;border-radius:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:32px;height:9px;flex-shrink:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="flex:1;height:9px;min-width:60px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:40px;height:16px;flex-shrink:0"></div>
+        </div>
+        <div class="sk-sig-item">
+          <div class="sk sk-pulse sk-green" style="width:6px;height:6px;flex-shrink:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:32px;height:9px;flex-shrink:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="flex:1;height:9px;min-width:60px"></div>
+          <div class="sk sk-pulse sk-green" style="width:40px;height:16px;flex-shrink:0"></div>
+        </div>
+        <div class="sk-sig-item">
+          <div class="sk sk-pulse sk-panel" style="width:6px;height:6px;flex-shrink:0;border-radius:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="width:32px;height:9px;flex-shrink:0"></div>
+          <div class="sk sk-pulse sk-text sk-panel" style="flex:1;height:9px;min-width:60px"></div>
+          <div class="sk sk-pulse sk-panel" style="width:40px;height:16px;flex-shrink:0"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="terminal">
+    <div class="terminal-header">
+      <div class="terminal-header-left">
+        <div class="terminal-dots">
+          <div class="dot r"></div>
+          <div class="dot y"></div>
+          <div class="dot g"></div>
+        </div>
+        <div class="sk sk-pulse sk-text sk-panel" style="width:60px;height:10px"></div>
+      </div>
+      <div class="sk sk-pulse sk-text sk-panel" style="width:100px;height:9px"></div>
+    </div>
+    <div class="terminal-output">
+      <div class="sk sk-pulse sk-text sk-green-bright sk-term-line" style="width:88%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:72%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:82%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:65%"></div>
+      <div class="sk sk-pulse sk-text sk-green sk-term-line" style="width:78%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:60%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:85%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:70%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:90%"></div>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-line" style="width:62%"></div>
+    </div>
+    <div class="terminal-input">
+      <span class="prompt-char">&gt;</span>
+      <div class="sk sk-pulse sk-text sk-panel sk-term-input"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══ MOBILE PANEL SWITCHING ═══ */
+(function(){
+  var tabs = document.querySelectorAll('.mobile-tab');
+  var config = document.getElementById('panelConfig');
+  var chart = document.getElementById('panelChart');
+  var positions = document.getElementById('panelPositions');
+
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      tabs.forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      var p = tab.dataset.panel;
+      config.classList.remove('mob-active');
+      chart.classList.remove('mob-active');
+      positions.classList.remove('mob-active');
+      if(p==='chart') chart.classList.add('mob-active');
+      else if(p==='config') config.classList.add('mob-active');
+      else if(p==='positions'||p==='signals') positions.classList.add('mob-active');
+    });
+  });
+})();
+</script>
+</body>
+</html>

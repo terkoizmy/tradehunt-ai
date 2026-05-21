@@ -211,12 +211,36 @@ Each page in our app maps to a specific HTML reference:
 | `/` | `Home.tsx` | `tradinghunter-landingpage.html` (hero, about, features, ticker, CTA) |
 | `/arena` | `Arena.tsx` | `tradinghunter-sandbox-dashboard.html` (layout, chart, terminal) |
 | `/arena/:id` | `ArenaDetail.tsx` | `tradinghunter-sandbox-dashboard.html` (full dashboard) |
-| `/agents/:id` | `AgentProfile.tsx` | Dark mode cards + chart (use dashboard tokens) |
-| `/leaderboard` | `Leaderboard.tsx` | Dark mode table (use dashboard tokens) |
+| `/agents/:id` | `AgentProfile.tsx` | `tradinghunter-agent-profiles.html` (header, stats, chart, trades) |
+| `/leaderboard` | `Leaderboard.tsx` | `tradinghunter-leaderboard-v2.html` (podium, rankings table) |
+
+**State variants** (same routes, different UI state):
+| State | Design Reference |
+|---|---|
+| Empty (no agent) | `tradinghunter-dashboard-empty.html` |
+| Loading skeleton | `tradinghunter-dashboard-skeleton.html` |
+| Connection lost | `tradinghunter-dashboard-disconnected.html` |
 
 ---
 
 ## 4. Page Specifications
+
+## Complete Design File Index
+
+| File | Covers |
+|---|---|
+| `tradinghunter-landingpage.html` | Home page (`/`) — landing |
+| `tradinghunter-sandbox-dashboard.html` | Arena dashboard (`/arena`) — main app |
+| `tradinghunter-agent-profiles.html` | Agent Profile (`/agents/:id`) |
+| `tradinghunter-leaderboard-v2.html` | Leaderboard (`/leaderboard`) |
+| `tradinghunter-dashboard-empty.html` | Dashboard — no agent deployed |
+| `tradinghunter-dashboard-skeleton.html` | Dashboard — loading skeleton |
+| `tradinghunter-dashboard-disconnected.html` | Dashboard — connection lost |
+| `tradinghunter-docs.html` | Docs page (reference only, not required for hackathon) |
+
+All files use the same design tokens. The dashboard variant files share the app shell from `tradinghunter-sandbox-dashboard.html` and only change the main content area.
+
+---
 
 ### 4.1 Home (`/`) — Landing Page
 
@@ -517,22 +541,25 @@ When working on the frontend, follow these rules in order:
 
 | File | Status | Design Reference |
 |---|---|---|
-| `src/styles/global.css` | Needs rewrite | Extract all tokens from HTML `<style>` blocks |
+| `src/styles/global.css` | Needs rewrite | Extract all tokens from all 7 HTML `<style>` blocks |
 | `src/main.tsx` | Exists | Wire providers correctly |
-| `src/App.tsx` | Exists | Update routes |
-| `src/pages/Home.tsx` | Needs rewrite | `landingpage.html` (hero → footer, all sections) |
-| `src/pages/Arena.tsx` | Needs rewrite | `sandbox-dashboard.html` (full app shell) |
-| `src/pages/AgentProfile.tsx` | Needs rewrite | Dark mode tokens + docs page structure |
-| `src/pages/Leaderboard.tsx` | Needs rewrite | Dark mode table from docs page |
+| `src/App.tsx` | Exists | Update routes + state variants |
+| `src/pages/Home.tsx` | Needs rewrite | `tradinghunter-landingpage.html` (hero → footer) |
+| `src/pages/Arena.tsx` | Needs rewrite | `tradinghunter-sandbox-dashboard.html` + 3 state variant files |
+| `src/pages/AgentProfile.tsx` | Needs rewrite | `tradinghunter-agent-profiles.html` |
+| `src/pages/Leaderboard.tsx` | Needs rewrite | `tradinghunter-leaderboard-v2.html` |
 | `src/components/Navbar.tsx` | Create | Two variants: landing nav + dashboard topbar |
-| `src/components/AgentCard.tsx` | Needs rewrite | Dashboard left panel patterns |
+| `src/components/AgentCard.tsx` | Needs rewrite | Dashboard left panel + agent-profiles patterns |
 | `src/components/TradeFeed.tsx` | Needs rewrite | Dashboard signals section |
 | `src/components/ArenaRing.tsx` | Needs rewrite | framer-motion bars matching design |
 | `src/components/PnLChart.tsx` | Needs rewrite | recharts matching chart canvas specs |
-| `src/components/LeaderboardTable.tsx` | Needs rewrite | Docs page table patterns |
+| `src/components/LeaderboardTable.tsx` | Needs rewrite | `tradinghunter-leaderboard-v2.html` table |
 | `src/components/Terminal.tsx` | Create | Dashboard terminal component |
-| `src/components/Ticker.tsx` | Create | Ticker marquee (used on Home + Arena) |
-| `src/hooks/useWebSocket.ts` | Exists | Verify reconnect logic |
-| `src/hooks/useContractEvents.ts` | Exists | Fix TS errors (already done) |
+| `src/components/Ticker.tsx` | Create | All 7 files (ticker appears on every page) |
+| `src/components/LoadingSkeleton.tsx` | Create | `tradinghunter-dashboard-skeleton.html` |
+| `src/components/ConnectionOverlay.tsx` | Create | `tradinghunter-dashboard-disconnected.html` |
+| `src/components/EmptyState.tsx` | Create | `tradinghunter-dashboard-empty.html` |
+| `src/hooks/useWebSocket.ts` | Exists | Verify reconnect + disconnection state |
+| `src/hooks/useContractEvents.ts` | Exists | Already fixed |
 | `src/lib/contracts.ts` | Exists | Verify ABIs + addresses |
 | `src/lib/api.ts` | Exists | Verify endpoint URLs |
