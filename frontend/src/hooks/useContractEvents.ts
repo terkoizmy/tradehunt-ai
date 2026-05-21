@@ -1,6 +1,6 @@
 import { useWatchContractEvent } from "wagmi";
 import { CONTRACTS } from "../lib/contracts";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 // ABI fragments for events we care about
 const tradeExecutedAbi = {
@@ -38,7 +38,7 @@ export function useTradeEvents() {
     eventName: "TradeExecuted",
     onLogs(logs) {
       for (const log of logs) {
-        const args = log.args as unknown as TradeEvent;
+        const args = (log as unknown as { args: TradeEvent }).args;
         if (args) {
           setEvents((prev) => [...prev.slice(-99), args]);
         }
