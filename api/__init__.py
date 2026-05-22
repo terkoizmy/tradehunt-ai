@@ -1,0 +1,1 @@
+"""Tradehunt API package."""

@@ -2,21 +2,82 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.config import get_settings
+from api.src.db.database import async_session
+from api.src.db.models import Agent
 from api.src.routes import agents, arena, trades
 from api.src.ws.manager import manager
+
+HEARTBEAT_OFFLINE_SECONDS = 90
+HEARTBEAT_IDLE_MINUTES = 5
+
+
+async def _heartbeat_monitor() -> None:
+    """Background task: mark agents offline/idle based on heartbeat age."""
+    while True:
+        await asyncio.sleep(30)
+        now = datetime.now(timezone.utc)
+        async with async_session() as db:
+            result = await db.execute(select(Agent))
+            agents_list = result.scalars().all()
+            for agent in agents_list:
+                if agent.status in ("stopped", "error"):
+                    continue
+
+                if agent.last_heartbeat is None:
+                    continue
+
+                age_seconds = (now - agent.last_heartbeat).total_seconds()
+
+                # Mark offline after 90s without heartbeat
+                if age_seconds > HEARTBEAT_OFFLINE_SECONDS and agent.status != "offline":
+                    agent.status = "offline"
+                    await manager.broadcast(
+                        "trades",
+                        {
+                            "type": "agent_status",
+                            "agent_id": str(agent.id),
+                            "status": "offline",
+                        },
+                    )
+                    continue
+
+                # Mark idle after 5 min without trades
+                # (simplified: check last heartbeat age vs 5 minutes)
+                if agent.status == "online" and age_seconds > (HEARTBEAT_IDLE_MINUTES * 60):
+                    agent.status = "idle"
+                    await manager.broadcast(
+                        "trades",
+                        {
+                            "type": "agent_status",
+                            "agent_id": str(agent.id),
+                            "status": "idle",
+                        },
+                    )
+
+            await db.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"Tradehunt API starting on {settings.api_host}:{settings.api_port}")
+    task = asyncio.create_task(_heartbeat_monitor())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
     print("Tradehunt API shutting down")
 
 

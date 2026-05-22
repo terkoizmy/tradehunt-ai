@@ -5,10 +5,17 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
     # Mantle
     mantle_sepolia_rpc_url: str = "https://rpc.sepolia.mantle.xyz"
     mantle_chain_id: int = 5003
@@ -36,6 +43,18 @@ class Settings(BaseSettings):
     api_port: int = 8000
     debug: bool = True
 
+    # Bybit URLs
+    bybit_rest_url: str = "https://api-testnet.bybit.com"
+    bybit_ws_url: str = "wss://stream-testnet.bybit.com/v5"
+
+    # Deployed Contracts
+    deployer_address: str = ""
+    erc8004_registry_address: str = ""
+    agent_identity_address: str = ""
+    trade_registry_address: str = ""
+    arena_leaderboard_address: str = ""
+    reputation_feed_address: str = ""
+
     # Covalent
     covalent_api_key: str = ""
 
@@ -45,10 +64,6 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 @lru_cache

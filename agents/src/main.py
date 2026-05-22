@@ -7,10 +7,12 @@ import asyncio
 import logging
 import signal
 import sys
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pandas as pd
 
+from agents.src.api.client import APIClient
 from agents.src.data.market_data import MarketData
 from agents.src.execution.bybit_client import BybitClient
 from agents.src.execution.bybit_mcp import BybitMCP
@@ -67,6 +69,7 @@ async def run_agent(
     capital: Decimal,
     interval: str = "15",
     loop_seconds: int = 60,
+    api_url: str | None = None,
 ) -> None:
     """Main agent loop: observe → decide → act → log."""
     persona = get_persona(persona_name)
@@ -75,6 +78,23 @@ async def run_agent(
     mcp = BybitMCP()
     engine = DecisionEngine()
     risk = RiskManager(persona=persona, capital=capital, config=RiskConfig())
+    api = APIClient(base_url=api_url) if api_url else None
+
+    # Register with backend if API URL provided
+    if api:
+        try:
+            await api.register(
+                name=persona.config.name,
+                persona=persona_name,
+                wallet_address="0x0000000000000000000000000000000000000000",  # TODO: real wallet
+                capital=capital,
+                symbol=symbol,
+                persona_config=persona.config.__dict__,
+            )
+            logger.info("Registered agent with backend: %s", api.agent_id)
+        except Exception as e:
+            logger.warning("Failed to register with backend: %s", e)
+            api = None
 
     # Sync open positions on startup
     try:
@@ -149,6 +169,22 @@ async def run_agent(
                 signal_strength=signal.confidence,
             )
 
+            # Report decision to backend
+            if api:
+                try:
+                    await api.report_decision({
+                        "action": decision.get("action", "hold"),
+                        "symbol": symbol,
+                        "confidence": decision.get("confidence", 0),
+                        "reasoning": decision.get("reasoning", ""),
+                        "signal_action": signal.action,
+                        "signal_confidence": signal.confidence,
+                        "risk_allowed": risk_decision.allowed,
+                        "risk_reason": risk_decision.reason if not risk_decision.allowed else None,
+                    })
+                except Exception as e:
+                    logger.debug("Decision report failed: %s", e)
+
             # Act
             if risk_decision.allowed and decision.get("action") in ("buy", "sell"):
                 qty = risk_decision.position_size / snapshot.last_price
@@ -172,6 +208,25 @@ async def run_agent(
                         risk_decision.stop_loss_price,
                         risk_decision.take_profit_price,
                     )
+
+                    # Report trade to backend
+                    if api:
+                        try:
+                            await api.report_trade({
+                                "action": decision["action"],
+                                "symbol": symbol,
+                                "side": decision["action"],
+                                "price": float(snapshot.last_price),
+                                "quantity": float(qty),
+                                "stop_loss": float(risk_decision.stop_loss_price) if risk_decision.stop_loss_price else None,
+                                "take_profit": float(risk_decision.take_profit_price) if risk_decision.take_profit_price else None,
+                                "confidence": decision.get("confidence", 0),
+                                "reasoning": decision.get("reasoning", ""),
+                                "order_id": result.order_id,
+                                "executed_at": datetime.now(timezone.utc).isoformat(),
+                            })
+                        except Exception as e:
+                            logger.debug("Trade report failed: %s", e)
                 else:
                     status = f"FAILED: {result.error}"
                     logger.warning("[%s] Order failed: %s", persona.config.name, status)
@@ -190,6 +245,13 @@ async def run_agent(
             # Sync positions + PnL after every iteration
             _sync_positions_and_pnl(client, risk, symbol)
 
+            # Heartbeat
+            if api:
+                try:
+                    await api.heartbeat()
+                except Exception as e:
+                    logger.debug("Heartbeat failed: %s", e)
+
             try:
                 await asyncio.wait_for(shutdown_event.wait(), timeout=loop_seconds)
             except asyncio.TimeoutError:
@@ -203,6 +265,15 @@ async def run_agent(
                 pass
 
     logger.info("[%s] Agent loop exited.", persona.config.name)
+
+    if api:
+        try:
+            await api.set_offline()
+        except Exception as e:
+            logger.warning("Failed to set offline: %s", e)
+        finally:
+            await api.close()
+
     client.close()
 
 
@@ -255,6 +326,12 @@ def main() -> None:
         default=60,
         help="Seconds between trading loops",
     )
+    parser.add_argument(
+        "--api-url",
+        type=str,
+        default=None,
+        help="Backend API URL for reporting (e.g. http://localhost:8000)",
+    )
     args = parser.parse_args()
 
     asyncio.run(
@@ -264,6 +341,7 @@ def main() -> None:
             Decimal(str(args.capital)),
             interval=args.interval,
             loop_seconds=args.loop,
+            api_url=args.api_url,
         )
     )
 
