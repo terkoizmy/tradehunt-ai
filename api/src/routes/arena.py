@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.db.database import get_db
 from api.src.db.models import Agent, ArenaScore, ArenaSession, Trade
-from api.src.services.arena_contract_bridge import ArenaContractBridge
+from api.src.services.arena_contract_bridge import get_arena_contract_bridge
 from api.src.services.scoring import calculate_scores
 from api.src.ws.manager import manager
 
@@ -78,7 +78,7 @@ async def create_session(
     body: SessionCreate,
     db: AsyncSession = Depends(get_db),
 ) -> SessionResponse:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(microsecond=0)
     session = ArenaSession(
         id=uuid.uuid4(),
         name=body.name,
@@ -86,14 +86,14 @@ async def create_session(
         start_time=now,
         end_time=datetime.fromtimestamp(
             now.timestamp() + body.duration_seconds, tz=timezone.utc
-        ),
+        ).replace(microsecond=0),
     )
     db.add(session)
     await db.flush()
 
     # Optionally create session on-chain (best-effort)
     try:
-        bridge = ArenaContractBridge()
+        bridge = get_arena_contract_bridge()
         onchain_id = await bridge.create_session(body.name, body.duration_seconds)
         session.onchain_id = onchain_id
         await db.flush()
@@ -160,7 +160,7 @@ async def calculate_and_submit_scores(
 
     if submit_onchain and session.onchain_id:
         try:
-            bridge = ArenaContractBridge()
+            bridge = get_arena_contract_bridge()
             for s in scores:
                 # Find on-chain agent_id from Agent table
                 agent_result = await db.execute(
@@ -209,7 +209,7 @@ async def end_session(
     # End on-chain session (best-effort)
     if session.onchain_id:
         try:
-            bridge = ArenaContractBridge()
+            bridge = get_arena_contract_bridge()
             await bridge.end_session(session.onchain_id)
         except Exception as exc:
             logger.warning("On-chain session end failed (best-effort): %s", exc)

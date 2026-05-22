@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -17,8 +17,10 @@ from api.src.db.models import Agent, ArenaScore, ArenaSession, Trade
 async def session_with_trades(client: AsyncClient):
     """Create an arena session, an agent, and some trades."""
     # Mock on-chain bridge to avoid real RPC calls
-    with patch("api.src.routes.arena.ArenaContractBridge") as MockBridge:
-        MockBridge.return_value.create_session.return_value = 1
+    with patch("api.src.routes.arena.get_arena_contract_bridge") as mock_get_bridge:
+        mock_bridge = MagicMock()
+        mock_bridge.create_session.return_value = 1
+        mock_get_bridge.return_value = mock_bridge
         # Create session
         resp = await client.post("/api/arena/sessions", json={
             "name": "Test Round",
@@ -38,6 +40,10 @@ async def session_with_trades(client: AsyncClient):
     assert resp.status_code == 200
     agent_id = resp.json()["agent_id"]
     api_key = resp.json()["api_key"]
+
+    # Small delay ensures trade created_at is strictly after session start_time
+    import asyncio
+    await asyncio.sleep(0.1)
 
     # Report trades
     for i, pnl in enumerate([100, -50, 200, 0, 150]):
@@ -78,8 +84,10 @@ async def test_calculate_scores(client: AsyncClient, session_with_trades):
 @pytest.mark.asyncio
 async def test_end_session(client: AsyncClient, session_with_trades):
     session_id, _ = session_with_trades
-    with patch("api.src.routes.arena.ArenaContractBridge") as MockBridge:
-        MockBridge.return_value.end_session.return_value = "0xend"
+    with patch("api.src.routes.arena.get_arena_contract_bridge") as mock_get_bridge:
+        mock_bridge = MagicMock()
+        mock_bridge.end_session.return_value = "0xend"
+        mock_get_bridge.return_value = mock_bridge
         resp = await client.post(f"/api/arena/sessions/{session_id}/end")
     assert resp.status_code == 200
     data = resp.json()

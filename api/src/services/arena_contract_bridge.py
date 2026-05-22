@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 from decimal import Decimal
+from functools import lru_cache
 from typing import Any
 
 from web3 import Web3
@@ -241,3 +242,9 @@ class ArenaContractBridge:
         if receipt["status"] != 1:
             raise RuntimeError(f"Tx reverted: {tx_hash.hex()}")
         return tx_hash.hex()
+
+
+@lru_cache
+def get_arena_contract_bridge() -> ArenaContractBridge:
+    """Return a singleton ArenaContractBridge instance."""
+    return ArenaContractBridge()

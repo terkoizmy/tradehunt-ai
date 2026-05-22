@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.db.models import ArenaScore, ArenaSession, Trade
@@ -33,54 +34,46 @@ async def calculate_scores(
     start_time = session.start_time
     end_time = session.end_time or datetime.now(timezone.utc)
 
-    # Small buffer for SQLite datetime precision mismatch
-    from datetime import timedelta
-    if start_time:
-        start_time = start_time - timedelta(seconds=1)
-    if end_time:
-        end_time = end_time + timedelta(seconds=1)
+    # Normalize bounds to naive UTC for consistent cross-DB comparison
+    def _naive_utc(dt: datetime | None) -> datetime | None:
+        if dt is None:
+            return None
+        if dt.tzinfo:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
 
-    # Use executed_at when available, otherwise fall back to created_at
-    trade_time = func.coalesce(Trade.executed_at, Trade.created_at)
+    start_naive = _naive_utc(start_time)
+    end_naive = _naive_utc(end_time)
 
-    # Aggregate per-agent within the session window
-    result = await db.execute(
-        select(
-            Trade.agent_id,
-            func.count(Trade.id).label("trade_count"),
-            func.sum(Trade.pnl).label("total_pnl"),
-            func.avg(Trade.pnl).label("avg_pnl"),
-        )
-        .where(
-            and_(
-                Trade.pnl.isnot(None),
-                trade_time >= start_time,
-                trade_time <= end_time,
-            )
-        )
-        .group_by(Trade.agent_id)
+    # Fetch all trades with pnl for this session in a single query (no time filter in SQL)
+    trades_result = await db.execute(
+        select(Trade.agent_id, Trade.pnl, Trade.executed_at, Trade.created_at)
+        .where(Trade.pnl.isnot(None))
     )
-    rows = result.all()
+
+    # Group and filter in Python to avoid SQLite/PostgreSQL datetime comparison quirks
+    agent_pnls: dict[uuid.UUID, list[Decimal]] = defaultdict(list)
+    for aid, pnl, executed_at, created_at in trades_result.all():
+        trade_time = executed_at or created_at
+        if trade_time is None:
+            continue
+        # Normalize trade time to naive UTC
+        if trade_time.tzinfo:
+            trade_time = trade_time.astimezone(timezone.utc).replace(tzinfo=None)
+        if start_naive and trade_time < start_naive:
+            continue
+        if end_naive and trade_time > end_naive:
+            continue
+        agent_pnls[aid].append(Decimal(str(pnl)))
 
     scores_data = []
-    for row in rows:
-        trade_count = row.trade_count
-        total_pnl = Decimal(str(row.total_pnl)) if row.total_pnl is not None else Decimal("0")
-        avg_pnl = Decimal(str(row.avg_pnl)) if row.avg_pnl is not None else Decimal("0")
+    for aid, pnls in agent_pnls.items():
+        trade_count = len(pnls)
+        total_pnl = sum(pnls, Decimal("0"))
+        avg_pnl = total_pnl / trade_count if trade_count > 0 else Decimal("0")
+        win_count = sum(1 for p in pnls if p > 0)
 
         # Compute stddev manually (SQLite compatible)
-        trades_result = await db.execute(
-            select(Trade.pnl)
-            .where(
-                and_(
-                    Trade.agent_id == row.agent_id,
-                    Trade.pnl.isnot(None),
-                    trade_time >= start_time,
-                    trade_time <= end_time,
-                )
-            )
-        )
-        pnls = [Decimal(str(t[0])) for t in trades_result.all() if t[0] is not None]
         if len(pnls) > 1:
             mean = sum(pnls) / len(pnls)
             variance = sum((p - mean) ** 2 for p in pnls) / (len(pnls) - 1)
@@ -88,26 +81,13 @@ async def calculate_scores(
         else:
             std_pnl = Decimal("0")
 
-        # Win rate: trades with positive PnL
-        win_result = await db.execute(
-            select(func.count(Trade.id))
-            .where(
-                and_(
-                    Trade.agent_id == row.agent_id,
-                    Trade.pnl > 0,
-                    trade_time >= start_time,
-                    trade_time <= end_time,
-                )
-            )
-        )
-        win_count = win_result.scalar() or 0
         win_rate = Decimal(str(win_count / trade_count)) if trade_count > 0 else Decimal("0")
 
         # Sharpe ratio (simplified)
         sharpe = (avg_pnl / std_pnl) if std_pnl > 0 else Decimal("0")
 
         scores_data.append({
-            "agent_id": row.agent_id,
+            "agent_id": aid,
             "trade_count": trade_count,
             "total_pnl": total_pnl,
             "sharpe_ratio": sharpe,

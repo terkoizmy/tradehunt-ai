@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.db.database import get_db
 from api.src.db.models import Agent, Decision, Trade
-from api.src.services.contract_bridge import ContractBridge
+from api.src.services.contract_bridge import get_contract_bridge
 from api.src.ws.manager import manager
 
 logger = logging.getLogger("tradehunt.agents")
@@ -132,14 +132,14 @@ async def register_agent(body: AgentRegister, db: AsyncSession = Depends(get_db)
     db.add(agent)
     await db.flush()
 
-    # Assign sequential on-chain ID
-    max_result = await db.execute(select(func.coalesce(func.max(Agent.onchain_id), 0)))
-    agent.onchain_id = int(max_result.scalar()) + 1
+    # Assign deterministic unique on-chain ID derived from the agent UUID
+    # to avoid race conditions from SELECT MAX(...) + 1 under concurrency.
+    agent.onchain_id = int(agent.id.int % (2 ** 63))
     await db.flush()
 
     # Best-effort on-chain link (owner wallet links itself to agentId)
     try:
-        bridge = ContractBridge()
+        bridge = get_contract_bridge()
         tx_hash = await bridge.link_agent(agent.onchain_id, bridge.address)
         logger.info("Agent %s linked on-chain | onchain_id=%s | tx=%s", agent.id, agent.onchain_id, tx_hash)
     except Exception as exc:
@@ -281,7 +281,7 @@ async def report_trade(
     # Best-effort on-chain trade logging
     if agent.onchain_id:
         try:
-            bridge = ContractBridge()
+            bridge = get_contract_bridge()
             tx_hash = await bridge.log_trade(
                 agent_id=agent.onchain_id,
                 symbol=trade.symbol,
@@ -443,12 +443,11 @@ async def link_agent_onchain(
         raise HTTPException(status_code=404, detail="Agent not found")
 
     if agent.onchain_id is None:
-        max_result = await db.execute(select(func.coalesce(func.max(Agent.onchain_id), 0)))
-        agent.onchain_id = int(max_result.scalar()) + 1
+        agent.onchain_id = int(agent.id.int % (2 ** 63))
         await db.flush()
 
     try:
-        bridge = ContractBridge()
+        bridge = get_contract_bridge()
         tx_hash = await bridge.link_agent(agent.onchain_id, bridge.address)
         return {
             "agent_id": str(agent_id),

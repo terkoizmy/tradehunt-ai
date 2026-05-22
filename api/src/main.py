@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -17,6 +18,8 @@ from api.src.db.models import Agent, ArenaSession
 from api.src.routes import agents, arena, trades
 from api.src.services.scoring import calculate_scores
 from api.src.ws.manager import manager
+
+logger = logging.getLogger("tradehunt.main")
 
 HEARTBEAT_OFFLINE_SECONDS = 90
 HEARTBEAT_IDLE_MINUTES = 5
@@ -85,8 +88,8 @@ async def _arena_scoring_monitor() -> None:
                 try:
                     await calculate_scores(session.id, db)
                     await db.commit()
-                except Exception as exc:
-                    print(f"Arena scoring monitor error for session {session.id}: {exc}")
+                except Exception:
+                    logger.exception("Arena scoring monitor error for session %s", session.id)
                     await db.rollback()
 
 
