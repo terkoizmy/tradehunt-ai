@@ -2,19 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
 
 import pandas as pd
 
-
-@dataclass
-class Signal:
-    action: str
-    symbol: str
-    confidence: Decimal
-    price: Decimal
-    reasoning: str
+from agents.src.data.market_data import Signal
 
 
 class MacroSwingStrategy:
@@ -48,6 +40,7 @@ class MacroSwingStrategy:
                 confidence=abs(score),
                 price=price,
                 reasoning=f"Multi-timeframe bullish alignment, score: {score:.2f}",
+                metadata={"swing_score": float(score)},
             )
         elif score < Decimal("-0.3"):
             return Signal(
@@ -55,6 +48,7 @@ class MacroSwingStrategy:
                 confidence=abs(score),
                 price=price,
                 reasoning=f"Multi-timeframe bearish alignment, score: {score:.2f}",
+                metadata={"swing_score": float(score)},
             )
 
         return Signal(

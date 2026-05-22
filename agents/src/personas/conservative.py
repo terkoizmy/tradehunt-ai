@@ -15,10 +15,14 @@ class ConservativePersona(BasePersona):
             PersonaConfig(
                 name="Conservative Value Seeker",
                 risk_profile="conservative",
+                description="Low-risk mean-reversion trader — waits for extremes, tight stops.",
                 max_drawdown=Decimal("0.10"),
                 preferred_timeframes=["60", "240", "D"],
                 max_leverage=Decimal("1"),
                 position_size_pct=Decimal("0.05"),
+                stop_loss_pct=Decimal("0.015"),
+                take_profit_pct=Decimal("0.04"),
+                confidence_threshold=Decimal("0.75"),
             )
         )
 

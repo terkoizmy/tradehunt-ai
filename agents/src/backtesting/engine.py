@@ -8,21 +8,42 @@ from typing import Any
 
 import pandas as pd
 
+from agents.src.personas.base import BasePersona
+
 
 @dataclass
 class BacktestResult:
     total_trades: int = 0
     win_count: int = 0
+    loss_count: int = 0
     win_rate: Decimal = Decimal("0")
     total_pnl: Decimal = Decimal("0")
+    gross_profit: Decimal = Decimal("0")
+    gross_loss: Decimal = Decimal("0")
+    profit_factor: Decimal = Decimal("0")
     sharpe_ratio: Decimal = Decimal("0")
     max_drawdown: Decimal = Decimal("0")
+    max_drawdown_pct: Decimal = Decimal("0")
     equity_curve: list[Decimal] = field(default_factory=list)
     trades: list[dict[str, Any]] = field(default_factory=list)
 
 
+@dataclass
+class _Position:
+    side: str  # "long" | "short"
+    qty: Decimal
+    entry_price: Decimal
+    stop_loss: Decimal | None = None
+    take_profit: Decimal | None = None
+    entry_bar: int = 0
+
+
 class BacktestEngine:
-    """Replays historical kline data through a strategy to measure performance."""
+    """Replays historical kline data through a strategy to measure performance.
+
+    Simulates stop-loss and take-profit using high/low prices per bar.
+    Supports both long and short positions.
+    """
 
     def __init__(self, initial_capital: Decimal = Decimal("10000")) -> None:
         self.initial_capital = initial_capital
@@ -32,69 +53,185 @@ class BacktestEngine:
         df: pd.DataFrame,
         strategy,
         symbol: str,
+        persona: BasePersona | None = None,
     ) -> BacktestResult:
         result = BacktestResult()
-        capital = self.initial_capital
-        position: Decimal | None = None
-        entry_price: Decimal | None = None
-        peak_capital = capital
-        pnl_series: list[Decimal] = []
+        cash = self.initial_capital
+        position: _Position | None = None
+        peak_equity = self.initial_capital
+        equity_curve: list[Decimal] = []
 
-        for i in range(200, len(df)):
-            window = df.iloc[: i + 1]
-            signal = strategy.analyze(window, symbol)
-            current_price = Decimal(str(window.iloc[-1]["close"]))
+        required = getattr(strategy, "ema_slow", 26) + getattr(strategy, "rsi_period", 14)
+        start = max(1, required)
 
-            if signal.action == "buy" and position is None:
-                entry_price = current_price
-                position = capital / current_price
-                capital = Decimal("0")
+        for i in range(len(df)):
+            bar = df.iloc[i]
+            high = Decimal(str(bar["high"]))
+            low = Decimal(str(bar["low"]))
+            close = Decimal(str(bar["close"]))
 
-            elif signal.action == "sell" and position is not None:
-                capital = position * current_price
-                pnl = capital - self.initial_capital
+            # 1. Check SL/TP for existing position using this bar's range
+            exit_price, exit_reason = self._check_sl_tp(position, high, low)
+            if exit_price is not None:
+                cash, trade_pnl = self._close_position(cash, position, exit_price)
+                self._record_trade(result, position, exit_price, trade_pnl, exit_reason, symbol)
                 position = None
-                entry_price = None
 
-                result.total_trades += 1
-                if pnl > 0:
-                    result.win_count += 1
-                result.total_pnl += pnl
-                result.trades.append({
-                    "symbol": symbol,
-                    "pnl": float(pnl),
-                    "entry": float(entry_price or 0),
-                    "exit": float(current_price),
-                })
+            # 2. Generate signal if we have enough data and flat
+            if i >= start and position is None:
+                window = df.iloc[: i + 1]
+                signal = strategy.analyze(window, symbol)
 
-            current_total = capital if position is None else position * current_price
-            peak_capital = max(peak_capital, current_total)
-            drawdown = (peak_capital - current_total) / peak_capital if peak_capital > 0 else Decimal("0")
-            result.max_drawdown = max(result.max_drawdown, drawdown)
-            pnl_series.append(current_total - self.initial_capital)
+                if signal.action == "buy":
+                    sl = tp = None
+                    if persona is not None:
+                        sl = close * (Decimal("1") - persona.config.stop_loss_pct)
+                        tp = close * (Decimal("1") + persona.config.take_profit_pct)
+                    qty = cash / close
+                    position = _Position(
+                        side="long",
+                        qty=qty,
+                        entry_price=close,
+                        stop_loss=sl,
+                        take_profit=tp,
+                        entry_bar=i,
+                    )
+                    cash = Decimal("0")
 
-        result.equity_curve = pnl_series
+                elif signal.action == "sell":
+                    sl = tp = None
+                    if persona is not None:
+                        sl = close * (Decimal("1") + persona.config.stop_loss_pct)
+                        tp = close * (Decimal("1") - persona.config.take_profit_pct)
+                    qty = cash / close
+                    position = _Position(
+                        side="short",
+                        qty=qty,
+                        entry_price=close,
+                        stop_loss=sl,
+                        take_profit=tp,
+                        entry_bar=i,
+                    )
+                    cash = Decimal("0")
+
+            # 3. Record absolute equity
+            equity = cash if position is None else self._position_value(position, close)
+            equity_curve.append(equity)
+            peak_equity = max(peak_equity, equity)
+
+            dd = (peak_equity - equity) / peak_equity if peak_equity > 0 else Decimal("0")
+            if dd > result.max_drawdown_pct:
+                result.max_drawdown_pct = dd
+                result.max_drawdown = peak_equity - equity
+
+        # Close any open position at last close
+        if position is not None:
+            last_close = Decimal(str(df.iloc[-1]["close"]))
+            cash, trade_pnl = self._close_position(cash, position, last_close)
+            self._record_trade(result, position, last_close, trade_pnl, "end_of_data", symbol)
+            position = None
+            equity_curve[-1] = cash
+
+        result.equity_curve = equity_curve
+        result.total_pnl = cash - self.initial_capital
+
         if result.total_trades > 0:
             result.win_rate = Decimal(str(result.win_count / result.total_trades))
 
-        if len(pnl_series) > 1 and position is not None:
-            # Close position at last price
-            last_price = Decimal(str(df.iloc[-1]["close"]))
-            capital = position * last_price
+        if result.gross_loss != 0:
+            result.profit_factor = result.gross_profit / abs(result.gross_loss)
 
-        result.total_pnl = capital - self.initial_capital
-
-        if pnl_series and len(pnl_series) > 1:
-            returns = [
-                float(pnl_series[i] - pnl_series[i - 1])
-                for i in range(1, len(pnl_series))
-            ]
-            if returns:
-                mean_ret = sum(returns) / len(returns)
-                std_ret = (
-                    (sum((r - mean_ret) ** 2 for r in returns) / len(returns)) ** 0.5
-                )
+        # Sharpe ratio uses percentage returns, not dollar PnL
+        if len(equity_curve) > 1:
+            pct_returns = []
+            for j in range(1, len(equity_curve)):
+                prev = equity_curve[j - 1]
+                if prev > 0:
+                    pct_returns.append(float((equity_curve[j] - prev) / prev))
+            if pct_returns:
+                mean_ret = sum(pct_returns) / len(pct_returns)
+                var_ret = sum((r - mean_ret) ** 2 for r in pct_returns) / len(pct_returns)
+                std_ret = var_ret ** 0.5
                 if std_ret > 0:
+                    # Annualize assuming ~252 trading days with daily bars;
+                    # here bars are arbitrary so we keep it unannualized
                     result.sharpe_ratio = Decimal(str(mean_ret / std_ret))
 
         return result
+
+    @staticmethod
+    def _position_value(position: _Position, price: Decimal) -> Decimal:
+        """Current market value of an open position."""
+        if position.side == "long":
+            return position.qty * price
+        # short: unrealized PnL subtracted from notional
+        entry_value = position.qty * position.entry_price
+        exit_value = position.qty * price
+        pnl = entry_value - exit_value
+        return entry_value + pnl
+
+    @staticmethod
+    def _check_sl_tp(
+        position: _Position | None,
+        high: Decimal,
+        low: Decimal,
+    ) -> tuple[Decimal | None, str | None]:
+        """Check if SL or TP was hit within this bar's range."""
+        if position is None:
+            return None, None
+
+        if position.side == "long":
+            if position.stop_loss is not None and low <= position.stop_loss:
+                return position.stop_loss, "stop_loss"
+            if position.take_profit is not None and high >= position.take_profit:
+                return position.take_profit, "take_profit"
+
+        elif position.side == "short":
+            if position.stop_loss is not None and high >= position.stop_loss:
+                return position.stop_loss, "stop_loss"
+            if position.take_profit is not None and low <= position.take_profit:
+                return position.take_profit, "take_profit"
+
+        return None, None
+
+    @staticmethod
+    def _close_position(
+        cash: Decimal,
+        position: _Position,
+        exit_price: Decimal,
+    ) -> tuple[Decimal, Decimal]:
+        if position.side == "long":
+            cash = position.qty * exit_price
+            trade_pnl = cash - (position.qty * position.entry_price)
+        else:  # short
+            entry_value = position.qty * position.entry_price
+            exit_value = position.qty * exit_price
+            trade_pnl = entry_value - exit_value
+            cash = entry_value + trade_pnl
+        return cash, trade_pnl
+
+    @staticmethod
+    def _record_trade(
+        result: BacktestResult,
+        position: _Position,
+        exit_price: Decimal,
+        trade_pnl: Decimal,
+        reason: str,
+        symbol: str,
+    ) -> None:
+        result.total_trades += 1
+        if trade_pnl > 0:
+            result.win_count += 1
+            result.gross_profit += trade_pnl
+        else:
+            result.loss_count += 1
+            result.gross_loss += trade_pnl
+
+        result.trades.append({
+            "symbol": symbol,
+            "side": position.side,
+            "entry": float(position.entry_price),
+            "exit": float(exit_price),
+            "pnl": float(trade_pnl),
+            "reason": reason,
+        })

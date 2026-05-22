@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
 
 import pandas as pd
 
-
-@dataclass
-class Signal:
-    action: str
-    symbol: str
-    confidence: Decimal
-    price: Decimal
-    reasoning: str
+from agents.src.data.market_data import Signal
+from agents.src.strategies.indicators import calc_rsi
 
 
 class MeanReversionStrategy:
@@ -43,39 +36,66 @@ class MeanReversionStrategy:
         df["std"] = df["close"].rolling(self.bb_period).std()
         df["upper"] = df["sma"] + self.bb_std * df["std"]
         df["lower"] = df["sma"] - self.bb_std * df["std"]
-        df["rsi"] = self._calc_rsi(df["close"])
+        df["rsi"] = calc_rsi(df["close"], period=self.rsi_period)
 
         latest = df.iloc[-1]
         price = Decimal(str(latest["close"]))
 
         # Price below lower band + RSI oversold = buy
         if latest["close"] < latest["lower"] and latest["rsi"] < self.rsi_oversold:
-            confidence = min(Decimal("0.90"), Decimal(str(1 - latest["rsi"] / 100)))
+            confidence = self._confidence_from_rsi(float(latest["rsi"]), is_buy=True)
             return Signal(
                 "buy", symbol,
                 confidence=confidence,
                 price=price,
                 reasoning=f"Price below lower BB, RSI oversold at {latest['rsi']:.1f}",
+                metadata={"bb_breakout": "lower", "rsi": float(latest["rsi"])},
             )
 
         # Price above upper band + RSI overbought = sell
         if latest["close"] > latest["upper"] and latest["rsi"] > self.rsi_overbought:
-            confidence = min(Decimal("0.90"), Decimal(str(latest["rsi"] / 100)))
+            confidence = self._confidence_from_rsi(float(latest["rsi"]), is_buy=False)
             return Signal(
                 "sell", symbol,
                 confidence=confidence,
                 price=price,
                 reasoning=f"Price above upper BB, RSI overbought at {latest['rsi']:.1f}",
+                metadata={"bb_breakout": "upper", "rsi": float(latest["rsi"])},
+            )
+
+        # Price touching band but RSI not extreme = weaker signal
+        if latest["close"] < latest["lower"]:
+            confidence = Decimal("0.55")
+            return Signal(
+                "buy", symbol,
+                confidence=confidence,
+                price=price,
+                reasoning=f"Price below lower BB at {latest['close']:.2f}, RSI {latest['rsi']:.1f}",
+                metadata={"bb_breakout": "lower", "rsi": float(latest["rsi"])},
+            )
+
+        if latest["close"] > latest["upper"]:
+            confidence = Decimal("0.55")
+            return Signal(
+                "sell", symbol,
+                confidence=confidence,
+                price=price,
+                reasoning=f"Price above upper BB at {latest['close']:.2f}, RSI {latest['rsi']:.1f}",
+                metadata={"bb_breakout": "upper", "rsi": float(latest["rsi"])},
             )
 
         return Signal("hold", symbol, Decimal("0"), price, "Price within bands")
 
-    def _calc_rsi(self, prices: pd.Series, period: int | None = None) -> pd.Series:
-        period = period or self.rsi_period
-        delta = prices.diff()
-        gain = delta.where(delta > 0, 0.0)
-        loss = (-delta).where(delta < 0, 0.0)
-        avg_gain = gain.ewm(alpha=1 / period, min_periods=period).mean()
-        avg_loss = loss.ewm(alpha=1 / period, min_periods=period).mean()
-        rs = avg_gain / avg_loss
-        return 100 - (100 / (1 + rs))
+    def _confidence_from_rsi(self, rsi: float, is_buy: bool) -> Decimal:
+        """Scale confidence based on how extreme RSI is.
+
+        Oversold RSI near 0 → higher buy confidence.
+        Overbought RSI near 100 → higher sell confidence.
+        """
+        if is_buy:
+            # rsi in [0, 30] → scale 0.70 to 0.90
+            raw = 0.70 + (0.20 * (1 - rsi / self.rsi_oversold))
+        else:
+            # rsi in [70, 100] → scale 0.70 to 0.90
+            raw = 0.70 + (0.20 * ((rsi - self.rsi_overbought) / (100 - self.rsi_overbought)))
+        return Decimal(str(min(0.90, raw)))

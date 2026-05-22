@@ -15,10 +15,14 @@ class ArbitrageurPersona(BasePersona):
             PersonaConfig(
                 name="Arbitrage Hunter",
                 risk_profile="moderate",
+                description="Cross-exchange arbitrage hunter — exploits price discrepancies.",
                 max_drawdown=Decimal("0.05"),
                 preferred_timeframes=["1", "5", "15"],
                 max_leverage=Decimal("1"),
                 position_size_pct=Decimal("0.20"),
+                stop_loss_pct=Decimal("0.005"),
+                take_profit_pct=Decimal("0.015"),
+                confidence_threshold=Decimal("0.80"),
             )
         )
 

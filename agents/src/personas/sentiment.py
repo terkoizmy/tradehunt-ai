@@ -15,10 +15,14 @@ class SentimentPersona(BasePersona):
             PersonaConfig(
                 name="Sentiment Oracle",
                 risk_profile="moderate",
+                description="News and social sentiment-driven trader — trades narrative shifts.",
                 max_drawdown=Decimal("0.15"),
                 preferred_timeframes=["15", "60", "240"],
                 max_leverage=Decimal("2"),
                 position_size_pct=Decimal("0.10"),
+                stop_loss_pct=Decimal("0.025"),
+                take_profit_pct=Decimal("0.06"),
+                confidence_threshold=Decimal("0.65"),
             )
         )
 

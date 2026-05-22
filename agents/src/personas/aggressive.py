@@ -15,10 +15,14 @@ class AggressivePersona(BasePersona):
             PersonaConfig(
                 name="Aggressive Momentum Hunter",
                 risk_profile="aggressive",
+                description="High-risk momentum trader — catches trends early, holds through volatility.",
                 max_drawdown=Decimal("0.25"),
                 preferred_timeframes=["5", "15", "60"],
                 max_leverage=Decimal("5"),
                 position_size_pct=Decimal("0.15"),
+                stop_loss_pct=Decimal("0.04"),
+                take_profit_pct=Decimal("0.12"),
+                confidence_threshold=Decimal("0.55"),
             )
         )
 

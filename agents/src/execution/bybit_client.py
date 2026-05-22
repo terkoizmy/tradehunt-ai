@@ -148,6 +148,19 @@ class BybitClient:
         result = self.http.get_positions(**params)
         return result["result"]["list"]
 
+    def get_closed_pnl(
+        self,
+        symbol: str,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Fetch recently closed PnL records for a symbol."""
+        result = self.http.get_closed_pnl(
+            category="linear",
+            symbol=symbol,
+            limit=limit,
+        )
+        return result["result"]["list"]
+
     def close(self) -> None:
         if self._ws is not None:
             self._ws.exit()
