@@ -8,18 +8,18 @@ from decimal import Decimal
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.db.database import get_db
-
-logger = logging.getLogger("tradehunt.arena")
 from api.src.db.models import Agent, ArenaScore, ArenaSession, Trade
 from api.src.services.arena_contract_bridge import ArenaContractBridge
 from api.src.services.scoring import calculate_scores
 from api.src.ws.manager import manager
+
+logger = logging.getLogger("tradehunt.arena")
 
 router = APIRouter(prefix="/api/arena", tags=["arena"])
 
@@ -148,7 +148,7 @@ async def get_session(
 @router.post("/sessions/{session_id}/calculate-scores")
 async def calculate_and_submit_scores(
     session_id: uuid.UUID,
-    submit_onchain: bool = False,
+    submit_onchain: bool = Query(default=False, description="Submit scores on-chain via ArenaLeaderboard"),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
     result = await db.execute(select(ArenaSession).where(ArenaSession.id == session_id))
@@ -211,8 +211,8 @@ async def end_session(
         try:
             bridge = ArenaContractBridge()
             await bridge.end_session(session.onchain_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("On-chain session end failed (best-effort): %s", exc)
 
     await manager.broadcast(
         "arena",

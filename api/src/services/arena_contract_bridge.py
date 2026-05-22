@@ -73,6 +73,13 @@ ARENA_LEADERBOARD_ABI = json.dumps(
             "type": "function",
         },
         {
+            "inputs": [],
+            "name": "sessionCount",
+            "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+            "stateMutability": "view",
+            "type": "function",
+        },
+        {
             "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
             "name": "sessions",
             "outputs": [
