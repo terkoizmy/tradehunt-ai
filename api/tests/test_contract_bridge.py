@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -87,23 +88,23 @@ async def test_get_agent_stats(bridge):
     assert stats["win_count"] == 7
 
 
-def test_send_with_retry_succeeds_first_try(bridge):
-    bridge._send_tx = MagicMock(return_value="0xok")
-    result = bridge._send_with_retry(MagicMock(), 100_000)
+async def test_send_with_retry_succeeds_first_try(bridge):
+    bridge._send_tx = AsyncMock(return_value="0xok")
+    result = await bridge._send_with_retry(MagicMock(), 100_000)
     assert result == "0xok"
     assert bridge._send_tx.call_count == 1
 
 
-def test_send_with_retry_retries_then_succeeds(bridge):
-    bridge._send_tx = MagicMock(side_effect=[RuntimeError("fail"), "0xok"])
-    with patch("api.src.services.contract_bridge.time.sleep"):
-        result = bridge._send_with_retry(MagicMock(), 100_000)
+async def test_send_with_retry_retries_then_succeeds(bridge):
+    bridge._send_tx = AsyncMock(side_effect=[RuntimeError("fail"), "0xok"])
+    with patch("api.src.services.contract_bridge.asyncio.sleep"):
+        result = await bridge._send_with_retry(MagicMock(), 100_000)
     assert result == "0xok"
     assert bridge._send_tx.call_count == 2
 
 
-def test_send_with_retry_exhausts(bridge):
-    bridge._send_tx = MagicMock(side_effect=RuntimeError("fail"))
-    with pytest.raises(RuntimeError), patch("api.src.services.contract_bridge.time.sleep"):
-        bridge._send_with_retry(MagicMock(), 100_000)
+async def test_send_with_retry_exhausts(bridge):
+    bridge._send_tx = AsyncMock(side_effect=RuntimeError("fail"))
+    with pytest.raises(RuntimeError), patch("api.src.services.contract_bridge.asyncio.sleep"):
+        await bridge._send_with_retry(MagicMock(), 100_000)
     assert bridge._send_tx.call_count == 3

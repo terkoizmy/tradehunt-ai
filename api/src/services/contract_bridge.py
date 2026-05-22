@@ -7,14 +7,13 @@ before it can call logTrade on behalf of that agent.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-import time
 from decimal import Decimal
 from typing import Any
 
 from web3 import Web3
-from web3.types import TxReceipt, Wei
 
 from api.src.config import get_settings
 
@@ -120,13 +119,10 @@ class ContractBridge:
             abi=json.loads(TRADE_REGISTRY_ABI),
         )
 
-        # Track nonce locally to avoid collisions during rapid-fire calls
-        self._nonce = self.w3.eth.get_transaction_count(self.address)
         logger.info(
-            "ContractBridge ready | address=%s | registry=%s | nonce=%s",
+            "ContractBridge ready | address=%s | registry=%s",
             self.address,
             self.registry_address,
-            self._nonce,
         )
 
     # ─── Link agent ─────────────────────────────────────────────────────────
@@ -137,7 +133,7 @@ class ContractBridge:
         Must be called once per agent before logging trades.
         Only the contract owner can call this.
         """
-        tx_hash = self._send_with_retry(
+        tx_hash = await self._send_with_retry(
             self.contract.functions.linkAgent(agent_id, Web3.to_checksum_address(agent_wallet)),
             gas_limit=GAS_LIMIT_LINK_AGENT,
         )
@@ -161,7 +157,7 @@ class ContractBridge:
         quantity_int = int(quantity)
         pnl_int = int(pnl)
 
-        tx_hash = self._send_with_retry(
+        tx_hash = await self._send_with_retry(
             self.contract.functions.logTrade(
                 agent_id,
                 symbol,
@@ -188,7 +184,9 @@ class ContractBridge:
 
     async def get_agent_stats(self, agent_id: int) -> dict[str, Any]:
         """Read on-chain stats for an agent."""
-        total_trades, total_pnl, win_count = self.contract.functions.getAgentStats(agent_id).call()
+        total_trades, total_pnl, win_count = await asyncio.to_thread(
+            self.contract.functions.getAgentStats(agent_id).call
+        )
         return {
             "total_trades": total_trades,
             "total_pnl": total_pnl,
@@ -197,35 +195,44 @@ class ContractBridge:
 
     # ─── Internal: send tx with retry ───────────────────────────────────────
 
-    def _send_with_retry(self, contract_func, gas_limit: int) -> str:
+    async def _send_with_retry(self, contract_func, gas_limit: int) -> str:
         last_error: Exception | None = None
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                return self._send_tx(contract_func, gas_limit)
+                return await self._send_tx(contract_func, gas_limit)
             except Exception as exc:
                 last_error = exc
                 logger.warning("Tx attempt %d/%d failed: %s", attempt, MAX_RETRIES, exc)
                 if attempt < MAX_RETRIES:
-                    time.sleep(RETRY_DELAY_SECONDS)
-                    # Refresh nonce in case it was the issue
-                    self._nonce = self.w3.eth.get_transaction_count(self.address)
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
         raise last_error or RuntimeError("All tx attempts failed")
 
-    def _send_tx(self, contract_func, gas_limit: int) -> str:
-        gas_price = self.w3.to_wei(GAS_PRICE_GWEI, "gwei")
-        tx = contract_func.build_transaction({
-            "from": self.address,
-            "nonce": self._nonce,
-            "gas": gas_limit,
-            "gasPrice": gas_price,
-            "chainId": self.w3.eth.chain_id,
-        })
-        signed = self.w3.eth.account.sign_transaction(tx, self.account.key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        self._nonce += 1
+    async def _send_tx(self, contract_func, gas_limit: int) -> str:
+        # Fetch fresh nonce before each tx to avoid collisions
+        nonce = await asyncio.to_thread(
+            self.w3.eth.get_transaction_count, self.address
+        )
+        gas_price = await asyncio.to_thread(self.w3.to_wei, GAS_PRICE_GWEI, "gwei")
 
-        # Wait for receipt (blocking, but fast on testnet)
-        receipt: TxReceipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+        tx = await asyncio.to_thread(
+            contract_func.build_transaction,
+            {
+                "from": self.address,
+                "nonce": nonce,
+                "gas": gas_limit,
+                "gasPrice": gas_price,
+                "chainId": self.w3.eth.chain_id,
+            },
+        )
+        signed = await asyncio.to_thread(
+            self.w3.eth.account.sign_transaction, tx, self.account.key
+        )
+        tx_hash = await asyncio.to_thread(
+            self.w3.eth.send_raw_transaction, signed.raw_transaction
+        )
+        receipt = await asyncio.to_thread(
+            self.w3.eth.wait_for_transaction_receipt, tx_hash, timeout=60
+        )
         if receipt["status"] != 1:
             raise RuntimeError(f"Tx reverted: {tx_hash.hex()}")
         return tx_hash.hex()

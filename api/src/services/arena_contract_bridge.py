@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-import time
 from decimal import Decimal
 from typing import Any
 
@@ -115,24 +115,21 @@ class ArenaContractBridge:
             address=Web3.to_checksum_address(addr),
             abi=json.loads(ARENA_LEADERBOARD_ABI),
         )
-        self._nonce = self.w3.eth.get_transaction_count(self.address)
         logger.info(
-            "ArenaContractBridge ready | address=%s | contract=%s | nonce=%s",
+            "ArenaContractBridge ready | address=%s | contract=%s",
             self.address,
             addr,
-            self._nonce,
         )
 
     async def create_session(self, name: str, duration_seconds: int) -> int:
         """Create a session on-chain. Returns on-chain sessionId."""
-        tx_hash = self._send_with_retry(
+        tx_hash = await self._send_with_retry(
             self.contract.functions.createSession(name, duration_seconds),
             gas_limit=GAS_LIMIT_CREATE_SESSION,
         )
         logger.info("Created arena session on-chain | name=%s | tx=%s", name, tx_hash)
-        # Extract sessionId from event (simplified: read from contract state)
-        # In production, parse the SessionCreated event from receipt
-        return self.contract.functions.sessionCount().call()
+        # Extract sessionId from contract state (simplified)
+        return await asyncio.to_thread(self.contract.functions.sessionCount().call)
 
     async def submit_score(
         self,
@@ -151,7 +148,7 @@ class ArenaContractBridge:
         win_rate_scaled = int(win_rate * Decimal("10_000"))
         pnl_int = int(total_pnl)
 
-        tx_hash = self._send_with_retry(
+        tx_hash = await self._send_with_retry(
             self.contract.functions.submitScore(
                 session_id,
                 agent_id,
@@ -173,7 +170,7 @@ class ArenaContractBridge:
 
     async def end_session(self, session_id: int) -> str:
         """End an arena session on-chain."""
-        tx_hash = self._send_with_retry(
+        tx_hash = await self._send_with_retry(
             self.contract.functions.endSession(session_id),
             gas_limit=GAS_LIMIT_END_SESSION,
         )
@@ -182,7 +179,7 @@ class ArenaContractBridge:
 
     async def get_leaderboard(self, session_id: int) -> list[dict[str, Any]]:
         """Read leaderboard from chain."""
-        raw = self.contract.functions.getLeaderboard(session_id).call()
+        raw = await asyncio.to_thread(self.contract.functions.getLeaderboard(session_id).call)
         return [
             {
                 "agent_id": r[0],
@@ -197,32 +194,43 @@ class ArenaContractBridge:
 
     # ─── Internal tx helpers ─────────────────────────────────────────────────
 
-    def _send_with_retry(self, contract_func, gas_limit: int) -> str:
+    async def _send_with_retry(self, contract_func, gas_limit: int) -> str:
         last_error: Exception | None = None
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                return self._send_tx(contract_func, gas_limit)
+                return await self._send_tx(contract_func, gas_limit)
             except Exception as exc:
                 last_error = exc
                 logger.warning("Arena tx attempt %d/%d failed: %s", attempt, MAX_RETRIES, exc)
                 if attempt < MAX_RETRIES:
-                    time.sleep(RETRY_DELAY_SECONDS)
-                    self._nonce = self.w3.eth.get_transaction_count(self.address)
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
         raise last_error or RuntimeError("All arena tx attempts failed")
 
-    def _send_tx(self, contract_func, gas_limit: int) -> str:
-        gas_price = self.w3.to_wei(GAS_PRICE_GWEI, "gwei")
-        tx = contract_func.build_transaction({
-            "from": self.address,
-            "nonce": self._nonce,
-            "gas": gas_limit,
-            "gasPrice": gas_price,
-            "chainId": self.w3.eth.chain_id,
-        })
-        signed = self.w3.eth.account.sign_transaction(tx, self.account.key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        self._nonce += 1
-        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+    async def _send_tx(self, contract_func, gas_limit: int) -> str:
+        nonce = await asyncio.to_thread(
+            self.w3.eth.get_transaction_count, self.address
+        )
+        gas_price = await asyncio.to_thread(self.w3.to_wei, GAS_PRICE_GWEI, "gwei")
+
+        tx = await asyncio.to_thread(
+            contract_func.build_transaction,
+            {
+                "from": self.address,
+                "nonce": nonce,
+                "gas": gas_limit,
+                "gasPrice": gas_price,
+                "chainId": self.w3.eth.chain_id,
+            },
+        )
+        signed = await asyncio.to_thread(
+            self.w3.eth.account.sign_transaction, tx, self.account.key
+        )
+        tx_hash = await asyncio.to_thread(
+            self.w3.eth.send_raw_transaction, signed.raw_transaction
+        )
+        receipt = await asyncio.to_thread(
+            self.w3.eth.wait_for_transaction_receipt, tx_hash, timeout=60
+        )
         if receipt["status"] != 1:
             raise RuntimeError(f"Tx reverted: {tx_hash.hex()}")
         return tx_hash.hex()

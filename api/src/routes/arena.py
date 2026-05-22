@@ -6,12 +6,16 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.db.database import get_db
+
+logger = logging.getLogger("tradehunt.arena")
 from api.src.db.models import Agent, ArenaScore, ArenaSession, Trade
 from api.src.services.arena_contract_bridge import ArenaContractBridge
 from api.src.services.scoring import calculate_scores
@@ -93,8 +97,8 @@ async def create_session(
         onchain_id = await bridge.create_session(body.name, body.duration_seconds)
         session.onchain_id = onchain_id
         await db.flush()
-    except Exception:
-        pass  # on-chain creation is optional for hackathon
+    except Exception as exc:
+        logger.warning("On-chain session creation failed (best-effort): %s", exc)
 
     return SessionResponse(
         id=session.id,
