@@ -15,7 +15,25 @@
       "PowerShell(conda create *)",
       "Bash(conda run *)",
       "Bash(gh auth *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(gh issue *)",
+      "Bash(gh label *)",
+      "Bash(gh run *)",
+      "Bash(Get-Content *)",
+      "Bash(gh -C \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\" issue list --state all --limit 50)",
+      "Bash(gh -C \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\" project list --limit 20)",
+      "Bash(gh project *)",
+      "Bash(python -m pytest tests/test_personas.py -v)",
+      "Bash(conda activate *)",
+      "Bash(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe *)",
+      "PowerShell(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe -m pytest \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\\\\agents\\\\tests\\\\test_personas.py\" -v)",
+      "PowerShell(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe -m pip install pytest)",
+      "PowerShell(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe -m pytest \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\\\\agents\\\\tests\\\\test_strategies.py\" -v)",
+      "PowerShell(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe -m pytest \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\\\\agents\\\\tests\" -v)",
+      "PowerShell(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe -m pip install pytest-asyncio)",
+      "PowerShell(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe -m pytest \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\\\\agents\\\\tests\\\\test_llm_and_backtesting.py\" -v)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(C:\\\\miniconda\\\\envs\\\\tradehunt-ai\\\\python.exe -m pytest \"C:\\\\Users\\\\Dimas Kusuma Aryan\\\\Documents\\\\hackathon\\\\mantel\\\\tradehunt-ai\\\\agents\\\\tests\\\\test_risk_manager.py\" -v)"
     ]
   }
 }
