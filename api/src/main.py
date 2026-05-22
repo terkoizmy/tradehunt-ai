@@ -13,12 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.config import get_settings
 from api.src.db.database import async_session
-from api.src.db.models import Agent
+from api.src.db.models import Agent, ArenaSession
 from api.src.routes import agents, arena, trades
+from api.src.services.scoring import calculate_scores
 from api.src.ws.manager import manager
 
 HEARTBEAT_OFFLINE_SECONDS = 90
 HEARTBEAT_IDLE_MINUTES = 5
+ARENA_SCORING_INTERVAL_SECONDS = 60
 
 
 async def _heartbeat_monitor() -> None:
@@ -67,15 +69,42 @@ async def _heartbeat_monitor() -> None:
             await db.commit()
 
 
+async def _arena_scoring_monitor() -> None:
+    """Background task: periodically calculate scores for active arena sessions."""
+    while True:
+        await asyncio.sleep(ARENA_SCORING_INTERVAL_SECONDS)
+        now = datetime.now(timezone.utc)
+        async with async_session() as db:
+            result = await db.execute(
+                select(ArenaSession).where(ArenaSession.status == "active")
+            )
+            sessions = result.scalars().all()
+            for session in sessions:
+                if session.end_time and now > session.end_time:
+                    continue
+                try:
+                    await calculate_scores(session.id, db)
+                    await db.commit()
+                except Exception as exc:
+                    print(f"Arena scoring monitor error for session {session.id}: {exc}")
+                    await db.rollback()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"Tradehunt API starting on {settings.api_host}:{settings.api_port}")
-    task = asyncio.create_task(_heartbeat_monitor())
+    heartbeat_task = asyncio.create_task(_heartbeat_monitor())
+    scoring_task = asyncio.create_task(_arena_scoring_monitor())
     yield
-    task.cancel()
+    heartbeat_task.cancel()
+    scoring_task.cancel()
     try:
-        await task
+        await heartbeat_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await scoring_task
     except asyncio.CancelledError:
         pass
     print("Tradehunt API shutting down")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -10,12 +11,15 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.src.db.database import get_db
 from api.src.db.models import Agent, Decision, Trade
+from api.src.services.contract_bridge import ContractBridge
 from api.src.ws.manager import manager
+
+logger = logging.getLogger("tradehunt.agents")
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -127,6 +131,19 @@ async def register_agent(body: AgentRegister, db: AsyncSession = Depends(get_db)
     )
     db.add(agent)
     await db.flush()
+
+    # Assign sequential on-chain ID
+    max_result = await db.execute(select(func.coalesce(func.max(Agent.onchain_id), 0)))
+    agent.onchain_id = int(max_result.scalar()) + 1
+    await db.flush()
+
+    # Best-effort on-chain link (owner wallet links itself to agentId)
+    try:
+        bridge = ContractBridge()
+        tx_hash = await bridge.link_agent(agent.onchain_id, bridge.address)
+        logger.info("Agent %s linked on-chain | onchain_id=%s | tx=%s", agent.id, agent.onchain_id, tx_hash)
+    except Exception as exc:
+        logger.warning("On-chain agent registration failed (best-effort): %s", exc)
 
     await manager.broadcast(
         "trades",
@@ -261,6 +278,23 @@ async def report_trade(
     db.add(trade)
     await db.flush()
 
+    # Best-effort on-chain trade logging
+    if agent.onchain_id:
+        try:
+            bridge = ContractBridge()
+            tx_hash = await bridge.log_trade(
+                agent_id=agent.onchain_id,
+                symbol=trade.symbol,
+                side=trade.side,
+                price=trade.price,
+                quantity=trade.quantity,
+                pnl=trade.pnl or Decimal("0"),
+            )
+            trade.tx_hash = tx_hash
+            await db.flush()
+        except Exception as exc:
+            logger.warning("On-chain trade logging failed (best-effort): %s", exc)
+
     await manager.broadcast(
         "trades",
         {
@@ -274,6 +308,17 @@ async def report_trade(
             "pnl": body.pnl,
         },
     )
+
+    if trade.pnl is not None:
+        await manager.broadcast(
+            "trades",
+            {
+                "type": "pnl_update",
+                "agent_id": str(agent.id),
+                "symbol": trade.symbol,
+                "pnl": float(trade.pnl),
+            },
+        )
 
     return TradeResponse(
         id=trade.id,
@@ -354,6 +399,64 @@ async def set_offline(
     )
 
     return {"status": "stopped", "agent_id": str(agent.id)}
+
+
+@router.get("/{agent_id}/pnl")
+async def get_agent_pnl(
+    agent_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(select(Agent).where(Agent.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    trades_result = await db.execute(
+        select(Trade).where(Trade.agent_id == agent_id, Trade.pnl.isnot(None))
+    )
+    trades = trades_result.scalars().all()
+
+    total_pnl = sum((t.pnl for t in trades), Decimal("0"))
+    trade_count = len(trades)
+    win_count = sum(1 for t in trades if t.pnl and t.pnl > 0)
+    avg_pnl = total_pnl / trade_count if trade_count > 0 else Decimal("0")
+    win_rate = win_count / trade_count if trade_count > 0 else 0.0
+
+    return {
+        "agent_id": str(agent_id),
+        "total_pnl": float(total_pnl),
+        "trade_count": trade_count,
+        "win_count": win_count,
+        "avg_pnl": float(avg_pnl),
+        "win_rate": win_rate,
+    }
+
+
+@router.post("/{agent_id}/link")
+async def link_agent_onchain(
+    agent_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(select(Agent).where(Agent.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    if agent.onchain_id is None:
+        max_result = await db.execute(select(func.coalesce(func.max(Agent.onchain_id), 0)))
+        agent.onchain_id = int(max_result.scalar()) + 1
+        await db.flush()
+
+    try:
+        bridge = ContractBridge()
+        tx_hash = await bridge.link_agent(agent.onchain_id, bridge.address)
+        return {
+            "agent_id": str(agent_id),
+            "onchain_id": agent.onchain_id,
+            "tx_hash": tx_hash,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"On-chain linking failed: {exc}")
 
 
 @router.get("/{agent_id}/trades", response_model=list[TradeResponse])
