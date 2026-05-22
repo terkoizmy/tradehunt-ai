@@ -84,6 +84,7 @@ contract ArenaLeaderboard is Ownable {
     }
 
     function endSession(uint256 sessionId) external onlyOwner {
+        require(sessions[sessionId].active, "Session already ended");
         sessions[sessionId].active = false;
         sessions[sessionId].endTime = block.timestamp;
     }

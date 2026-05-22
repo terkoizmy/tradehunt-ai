@@ -32,11 +32,11 @@ contract ArenaLeaderboardTest is Test {
         vm.prank(owner);
         board.submitScore(sessionId, AGENT_1, 10000, 1500000, 7500, 42);
 
-        ArenaLeaderboard.AgentScore memory score = board.scores(sessionId, AGENT_1);
-        assertEq(score.totalPnl, 10000);
-        assertEq(score.sharpeRatio, 1500000);
-        assertEq(score.winRate, 7500);
-        assertEq(score.tradeCount, 42);
+        (uint256 scoreAgentId, int256 totalPnl, int256 sharpeRatio, uint256 winRate, uint256 tradeCount,) = board.scores(sessionId, AGENT_1);
+        assertEq(totalPnl, 10000);
+        assertEq(sharpeRatio, 1500000);
+        assertEq(winRate, 7500);
+        assertEq(tradeCount, 42);
     }
 
     function test_GetLeaderboard() public {
@@ -56,5 +56,14 @@ contract ArenaLeaderboardTest is Test {
         board.endSession(sessionId);
         (, , , bool active) = board.sessions(sessionId);
         assertFalse(active);
+    }
+
+    function test_RevertIfEndSessionTwice() public {
+        vm.startPrank(owner);
+        uint256 sessionId = board.createSession("Round 1", 1 hours);
+        board.endSession(sessionId);
+        vm.expectRevert("Session already ended");
+        board.endSession(sessionId);
+        vm.stopPrank();
     }
 }

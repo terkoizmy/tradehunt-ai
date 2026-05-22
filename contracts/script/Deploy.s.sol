@@ -2,21 +2,22 @@
 pragma solidity ^0.8.25;
 
 import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
+import {ERC8004Registry} from "../src/ERC8004Registry.sol";
 import {AgentIdentity} from "../src/AgentIdentity.sol";
 import {TradeRegistry} from "../src/TradeRegistry.sol";
 import {ArenaLeaderboard} from "../src/ArenaLeaderboard.sol";
 import {ReputationFeed} from "../src/ReputationFeed.sol";
 
 contract Deploy is Script {
-    // ERC-8004 Identity Registry on Mantle Sepolia
-    // Address to be confirmed from Mantle docs — update before deploying
-    address constant ERC8004_IDENTITY_REGISTRY = address(0); // TODO: update
-
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        AgentIdentity agentIdentity = new AgentIdentity(ERC8004_IDENTITY_REGISTRY);
+        ERC8004Registry registry = new ERC8004Registry();
+        console.log("ERC8004Registry deployed at:", address(registry));
+
+        AgentIdentity agentIdentity = new AgentIdentity(address(registry));
         console.log("AgentIdentity deployed at:", address(agentIdentity));
 
         TradeRegistry tradeRegistry = new TradeRegistry();

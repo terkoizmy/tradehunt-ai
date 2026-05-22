@@ -10,8 +10,9 @@ interface IERC8004IdentityRegistry {
 
 contract AgentIdentity {
     IERC8004IdentityRegistry public immutable registry;
+    mapping(uint256 => string) public agentName;
 
-    event AgentRegistered(uint256 indexed agentId, address indexed owner, string agentURI);
+    event AgentRegistered(uint256 indexed agentId, address indexed owner, string agentName, string agentURI);
 
     constructor(address _registry) {
         registry = IERC8004IdentityRegistry(_registry);
@@ -22,7 +23,8 @@ contract AgentIdentity {
         returns (uint256 agentId)
     {
         agentId = registry.registerAgent(msg.sender, agentURI);
-        emit AgentRegistered(agentId, msg.sender, agentURI);
+        agentName[agentId] = name;
+        emit AgentRegistered(agentId, msg.sender, name, agentURI);
     }
 
     function updateAgentURI(uint256 agentId, string calldata newURI) external {
